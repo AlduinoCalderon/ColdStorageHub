@@ -5,8 +5,8 @@ const sequelize = require('./config/database');
 // Función para iniciar el servidor
 const startServer = async () => {
     try {
-        // Sincronizar la base de datos
-        await sequelize.sync({ alter: true });
+        // Sincronizar la base de datos sin modificar la estructura
+        await sequelize.sync();
         console.log('Base de datos sincronizada correctamente');
 
         // Iniciar el servidor
