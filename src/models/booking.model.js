@@ -1,67 +1,64 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const BaseModel = require('./base.model');
+const baseFields = require('./base.model');
+const { EndUser } = require('./end-user.model');
+const { StorageUnit } = require('./storage-unit.model');
 
-class Booking extends BaseModel {
-    static init() {
-        return super.init({
-            id: {
-                type: DataTypes.UUID,
-                defaultValue: DataTypes.UUIDV4,
-                primaryKey: true
-            },
-            userId: {
-                type: DataTypes.UUID,
-                allowNull: false,
-                references: {
-                    model: 'users',
-                    key: 'id'
-                }
-            },
-            storageUnitId: {
-                type: DataTypes.UUID,
-                allowNull: false,
-                references: {
-                    model: 'storage_units',
-                    key: 'id'
-                }
-            },
-            startDate: {
-                type: DataTypes.DATE,
-                allowNull: false
-            },
-            endDate: {
-                type: DataTypes.DATE,
-                allowNull: false
-            },
-            status: {
-                type: DataTypes.ENUM('pending', 'confirmed', 'cancelled', 'completed'),
-                defaultValue: 'pending'
-            },
-            totalPrice: {
-                type: DataTypes.DECIMAL(10, 2),
-                allowNull: false
-            },
-            paymentStatus: {
-                type: DataTypes.ENUM('pending', 'paid', 'refunded'),
-                defaultValue: 'pending'
-            },
-            notes: {
-                type: DataTypes.TEXT,
-                allowNull: true
+const Booking = sequelize.define('Booking', {
+    id: {
+        type: DataTypes.INTEGER,
+        primaryKey: true,
+        autoIncrement: true,
+        field: 'booking_id'
+    },
+    end_user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'EndUsers',
+            key: 'end_user_id'
+        }
+    },
+    start_date: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    end_date: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    notes: {
+        type: DataTypes.TEXT,
+        allowNull: true
+    },
+    ...baseFields
+}, {
+    tableName: 'Bookings',
+    timestamps: true,
+    paranoid: true,
+    deletedAt: 'deleted_at',
+    validate: {
+        dateOrder() {
+            if (this.start_date >= this.end_date) {
+                throw new Error('La fecha de inicio debe ser anterior a la fecha de fin');
             }
-        }, {
-            sequelize,
-            modelName: 'Booking',
-            tableName: 'bookings',
-            timestamps: true
-        });
+        }
     }
+});
 
-    static associate(models) {
-        this.belongsTo(models.User, { foreignKey: 'userId', as: 'user' });
-        this.belongsTo(models.StorageUnit, { foreignKey: 'storageUnitId', as: 'storageUnit' });
-    }
-}
+// Función para configurar las asociaciones
+const setupAssociations = () => {
+    Booking.belongsTo(EndUser, {
+        foreignKey: 'end_user_id',
+        as: 'endUser'
+    });
+    
+    Booking.belongsToMany(StorageUnit, {
+        through: 'Booking_StorageUnits',
+        foreignKey: 'booking_id',
+        otherKey: 'unit_id',
+        as: 'storageUnits'
+    });
+};
 
-module.exports = Booking; 
+module.exports = { Booking, setupAssociations }; 

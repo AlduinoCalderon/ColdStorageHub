@@ -5,7 +5,7 @@ import random
 import time
 
 # Configuración
-API_URL = "http://localhost:3000/api/v1"
+API_URL = "https://coldstoragehub.onrender.com/api/v1"
 
 def create_test_data():
     # Generar timestamp para emails únicos
@@ -21,7 +21,10 @@ def create_test_data():
     }
     
     print("Creando propietario...")
+    print("URL:", f"{API_URL}/auth/register")
+    print("Datos:", json.dumps(owner_data, indent=2))
     owner_response = requests.post(f"{API_URL}/auth/register", json=owner_data)
+    print("Código de estado:", owner_response.status_code)
     print("Respuesta del servidor:", owner_response.text)
     
     if owner_response.status_code != 201:

@@ -1,16 +1,23 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const baseFields = require('./base.model');
+const { Warehouse } = require('./warehouse.model');
+const { Booking } = require('./booking.model');
 
 const StorageUnit = sequelize.define('StorageUnit', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        field: 'unit_id'
     },
     warehouse_id: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        references: {
+            model: 'Warehouses',
+            key: 'warehouse_id'
+        }
     },
     width: {
         type: DataTypes.DECIMAL(5, 2),
@@ -42,17 +49,24 @@ const StorageUnit = sequelize.define('StorageUnit', {
     },
     ...baseFields
 }, {
-    tableName: 'storage_units',
+    tableName: 'StorageUnits',
     timestamps: true,
     paranoid: true,
     deletedAt: 'deleted_at'
 });
 
 // Función para configurar las asociaciones
-const setupAssociations = (Warehouse) => {
+const setupAssociations = () => {
     StorageUnit.belongsTo(Warehouse, {
         foreignKey: 'warehouse_id',
         as: 'warehouse'
+    });
+
+    StorageUnit.belongsToMany(Booking, {
+        through: 'Booking_StorageUnits',
+        foreignKey: 'unit_id',
+        otherKey: 'booking_id',
+        as: 'bookings'
     });
 };
 
