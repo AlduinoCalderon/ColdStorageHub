@@ -1,13 +1,14 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const baseFields = require('./base.model');
+const { Booking } = require('./booking.model');
 
-const Owner = sequelize.define('Owner', {
+const EndUser = sequelize.define('EndUser', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        field: 'owner_id'
+        field: 'end_user_id'
     },
     name: {
         type: DataTypes.STRING(100),
@@ -24,18 +25,18 @@ const Owner = sequelize.define('Owner', {
     },
     ...baseFields
 }, {
-    tableName: 'Owners',
+    tableName: 'EndUsers',
     timestamps: true,
     paranoid: true,
     deletedAt: 'deleted_at'
 });
 
 // Función para configurar las asociaciones
-const setupAssociations = (Warehouse) => {
-    Owner.hasMany(Warehouse, {
-        foreignKey: 'owner_id',
-        as: 'warehouses'
+const setupAssociations = () => {
+    EndUser.hasMany(Booking, {
+        foreignKey: 'end_user_id',
+        as: 'bookings'
     });
 };
 
-module.exports = { Owner, setupAssociations }; 
+module.exports = { EndUser, setupAssociations }; 
