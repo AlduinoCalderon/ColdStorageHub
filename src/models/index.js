@@ -27,11 +27,14 @@ StorageUnit.belongsTo(Warehouse, {
     as: 'warehouse'
 });
 
-StorageUnit.belongsToMany(Booking, {
-    through: 'Booking_StorageUnits',
-    foreignKey: 'unit_id',
-    otherKey: 'booking_id',
+EndUser.hasMany(Booking, {
+    foreignKey: 'end_user_id',
     as: 'bookings'
+});
+
+Booking.belongsTo(EndUser, {
+    foreignKey: 'end_user_id',
+    as: 'endUser'
 });
 
 Booking.belongsToMany(StorageUnit, {
@@ -41,13 +44,10 @@ Booking.belongsToMany(StorageUnit, {
     as: 'storageUnits'
 });
 
-Booking.belongsTo(EndUser, {
-    foreignKey: 'end_user_id',
-    as: 'endUser'
-});
-
-EndUser.hasMany(Booking, {
-    foreignKey: 'end_user_id',
+StorageUnit.belongsToMany(Booking, {
+    through: 'Booking_StorageUnits',
+    foreignKey: 'unit_id',
+    otherKey: 'booking_id',
     as: 'bookings'
 });
 

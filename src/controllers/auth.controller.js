@@ -3,22 +3,47 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
 
-const generateToken = (user) => {
-    return jwt.sign(
-        { 
-            id: user.id,
-            email: user.email,
-            role: user.role
-        },
-        process.env.JWT_SECRET,
-        { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
-};
+const generateToken = (user) => jwt.sign(
+    { 
+        id: user.id,
+        email: user.email,
+        role: user.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN }
+);
 
 // Registro de usuario
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role, phone, business_name } = req.body;
+        console.log('Datos recibidos:', req.body);
+        const { name, email, password, role, phone } = req.body;
+
+        // Validar campos requeridos
+        if (!name || !email || !password || !role) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Faltan campos requeridos',
+                details: {
+                    name: !name ? 'Nombre es requerido' : null,
+                    email: !email ? 'Email es requerido' : null,
+                    password: !password ? 'Contraseña es requerida' : null,
+                    role: !role ? 'Rol es requerido' : null
+                }
+            });
+        }
+
+        // Validar rol
+        const validRoles = ['owner', 'end_user', 'admin'];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Rol inválido',
+                details: {
+                    role: `El rol debe ser uno de: ${validRoles.join(', ')}`
+                }
+            });
+        }
 
         // Verificar si el email ya existe
         const existingUser = await User.findOne({ where: { email } });
@@ -39,8 +64,7 @@ exports.register = async (req, res) => {
             email,
             password: hashedPassword,
             role,
-            phone,
-            business_name
+            phone
         });
 
         // Generar token
@@ -59,6 +83,7 @@ exports.register = async (req, res) => {
             data: { user }
         });
     } catch (error) {
+        console.error('Error en registro:', error);
         res.status(500).json({
             status: 'error',
             message: 'Error al registrar el usuario',
