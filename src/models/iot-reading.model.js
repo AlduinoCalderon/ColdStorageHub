@@ -1,47 +1,38 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const { IoTSensor } = require('./iot-sensor.model');
+const { Model } = require('sequelize');
 
-const IoTReading = sequelize.define('IoTReading', {
-    id: {
+class IotReading extends Model {}
+
+IotReading.init({
+    readingId: {
         type: DataTypes.INTEGER,
-        primaryKey: true,
-        autoIncrement: true,
-        field: 'reading_id'
+        primaryKey: true
     },
-    sensor_id: {
+    sensorId: {
         type: DataTypes.INTEGER,
+        primaryKey: false,
         allowNull: false,
         references: {
-            model: 'IoT_Sensors',
-            key: 'sensor_id'
+            model: 'iotSensors',
+            key: 'sensorId'
         }
     },
     value: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
-    recorded_at: {
+    recordedAt: {
         type: DataTypes.DATE,
+        allowNull: false,
         defaultValue: DataTypes.NOW,
-        allowNull: false
+        primaryKey: true
     }
 }, {
-    tableName: 'IoT_Readings',
-    timestamps: false,
-    indexes: [
-        {
-            fields: ['sensor_id', 'recorded_at']
-        }
-    ]
+    sequelize,
+    modelName: 'IotReading',
+    tableName: 'iotReadings',
+    timestamps: false // Esta tabla no usa los timestamps estándar
 });
 
-// Función para configurar las asociaciones
-const setupAssociations = () => {
-    IoTReading.belongsTo(IoTSensor, {
-        foreignKey: 'sensor_id',
-        as: 'sensor'
-    });
-};
-
-module.exports = { IoTReading, setupAssociations }; 
+module.exports = IotReading;

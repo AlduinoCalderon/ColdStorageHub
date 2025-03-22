@@ -1,13 +1,20 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const baseFields = require('./base.model');
 const bcrypt = require('bcryptjs');
+const BaseModel = require('./base.model');
 
-const User = sequelize.define('User', {
-    id: {
+class User extends BaseModel {
+    async comparePassword(candidatePassword) {
+        return bcrypt.compare(candidatePassword, this.password);
+    }
+}
+
+User.init({
+    userId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true
+        autoIncrement: true,
+        field: 'userId'
     },
     name: {
         type: DataTypes.STRING(100),
@@ -21,28 +28,28 @@ const User = sequelize.define('User', {
             isEmail: true
         }
     },
-    password: {
-        type: DataTypes.STRING,
-        allowNull: false
-    },
     phone: {
         type: DataTypes.STRING(20),
         allowNull: true
     },
+    password: {
+        type: DataTypes.STRING(255),
+        allowNull: false
+    },
     role: {
-        type: DataTypes.ENUM('owner', 'end_user', 'admin'),
-        defaultValue: 'end_user'
+        type: DataTypes.ENUM('admin', 'owner', 'customer'),
+        allowNull: false,
+        defaultValue: 'customer'
     },
     status: {
-        type: DataTypes.ENUM('active', 'inactive'),
+        type: DataTypes.ENUM('active', 'inactive', 'suspended'),
+        allowNull: false,
         defaultValue: 'active'
-    },
-    ...baseFields
+    }
 }, {
+    sequelize,
+    modelName: 'User',
     tableName: 'users',
-    timestamps: true,
-    paranoid: true,
-    deletedAt: 'deleted_at',
     hooks: {
         beforeCreate: async (user) => {
             if (user.password) {
@@ -57,8 +64,4 @@ const User = sequelize.define('User', {
     }
 });
 
-User.prototype.comparePassword = async function(candidatePassword) {
-    return bcrypt.compare(candidatePassword, this.password);
-};
-
-module.exports = User; 
+module.exports = User;

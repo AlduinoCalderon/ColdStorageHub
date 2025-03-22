@@ -1,46 +1,51 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
+const BaseModel = require('./base.model');
 
-const BookingUnit = sequelize.define('BookingUnit', {
+class Booking extends BaseModel {}
+
+Booking.init({
     bookingId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        allowNull: false,
-        field: 'bookingId',
-        references: {
-            model: 'bookings',
-            key: 'bookingId'
-        }
+        autoIncrement: true
     },
-    unitId: {
+    customerId: {
         type: DataTypes.INTEGER,
-        primaryKey: true,
         allowNull: false,
-        field: 'unitId',
         references: {
-            model: 'storageUnits',
-            key: 'unitId'
+            model: 'users',
+            key: 'userId'
         }
     },
-    pricePerHour: {
-        type: DataTypes.DECIMAL(10, 2),
+    warehouseId: {
+        type: DataTypes.INTEGER,
         allowNull: false,
-        field: 'pricePerHour'
+        references: {
+            model: 'warehouses',
+            key: 'warehouseId'
+        }
+    },
+    startDate: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    endDate: {
+        type: DataTypes.DATE,
+        allowNull: false
+    },
+    status: {
+        type: DataTypes.ENUM('pending', 'confirmed', 'cancelled', 'completed'),
+        defaultValue: 'pending'
+    },
+    notes: {
+        type: DataTypes.TEXT,
+        allowNull: true
     }
 }, {
-    tableName: 'bookingUnits',
-    timestamps: false
+    sequelize,
+    modelName: 'Booking',
+    tableName: 'bookings'
 });
 
-// Asociaciones
-BookingUnit.associate = (models) => {
-    BookingUnit.belongsTo(models.Booking, {
-        foreignKey: 'bookingId'
-    });
-    
-    BookingUnit.belongsTo(models.StorageUnit, {
-        foreignKey: 'unitId'
-    });
-};
-
-module.exports = BookingUnit;
+module.exports = Booking;

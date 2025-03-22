@@ -1,20 +1,22 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const baseFields = require('./base.model');
+const BaseModel = require('./base.model');
+const Sequelize = require('sequelize');
 
-const Warehouse = sequelize.define('Warehouse', {
-    id: {
+class Warehouse extends BaseModel {}
+
+Warehouse.init({
+    warehouseId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
-        field: 'warehouse_id'
+        autoIncrement: true
     },
-    owner_id: {
+    ownerId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'Owners',
-            key: 'owner_id'
+            model: 'users',
+            key: 'userId'
         }
     },
     name: {
@@ -33,28 +35,18 @@ const Warehouse = sequelize.define('Warehouse', {
         type: DataTypes.STRING(255),
         allowNull: false
     },
-    operating_hours: {
+    operatingHours: {
         type: DataTypes.JSON,
         allowNull: true
     },
     amenities: {
         type: DataTypes.JSON,
         allowNull: true
-    },
-    ...baseFields
+    }
 }, {
-    tableName: 'Warehouses',
-    timestamps: true,
-    paranoid: true,
-    deletedAt: 'deleted_at'
+    sequelize,
+    modelName: 'Warehouse',
+    tableName: 'warehouses'
 });
 
-// Función para configurar las asociaciones
-const setupAssociations = (Owner) => {
-    Warehouse.belongsTo(Owner, {
-        foreignKey: 'owner_id',
-        as: 'owner'
-    });
-};
-
-module.exports = { Warehouse, setupAssociations }; 
+module.exports = Warehouse;
