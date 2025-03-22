@@ -1,72 +1,30 @@
-const { Owner } = require('./owner.model');
-const { Warehouse } = require('./warehouse.model');
-const { StorageUnit } = require('./storage-unit.model');
-const { Booking } = require('./booking.model');
-const { EndUser } = require('./end-user.model');
-const { IoTSensor } = require('./iot-sensor.model');
-const { IoTReading } = require('./iot-reading.model');
+const User = require('./user.model');
+const { Owner, EndUser } = require('./user-adapter');
+const Warehouse = require('./warehouse.model');
+const StorageUnit = require('./storage-unit.model');
+const Booking = require('./booking.model');
+const BookingUnit = require('./booking-unit.model');
+const IotSensor = require('./iot-sensor.model');
+const IotReading = require('./iot-reading.model');
+const Payment = require('./payment.model');
+const Maintenance = require('./maintenance.model');
+const Notification = require('./notification.model');
+const setupAssociations = require('./associations');
 
-// Configurar las asociaciones
-Owner.hasMany(Warehouse, {
-    foreignKey: 'owner_id',
-    as: 'warehouses'
-});
-
-Warehouse.belongsTo(Owner, {
-    foreignKey: 'owner_id',
-    as: 'owner'
-});
-
-Warehouse.hasMany(StorageUnit, {
-    foreignKey: 'warehouse_id',
-    as: 'storageUnits'
-});
-
-StorageUnit.belongsTo(Warehouse, {
-    foreignKey: 'warehouse_id',
-    as: 'warehouse'
-});
-
-EndUser.hasMany(Booking, {
-    foreignKey: 'end_user_id',
-    as: 'bookings'
-});
-
-Booking.belongsTo(EndUser, {
-    foreignKey: 'end_user_id',
-    as: 'endUser'
-});
-
-Booking.belongsToMany(StorageUnit, {
-    through: 'Booking_StorageUnits',
-    foreignKey: 'booking_id',
-    otherKey: 'unit_id',
-    as: 'storageUnits'
-});
-
-StorageUnit.belongsToMany(Booking, {
-    through: 'Booking_StorageUnits',
-    foreignKey: 'unit_id',
-    otherKey: 'booking_id',
-    as: 'bookings'
-});
-
-IoTSensor.belongsTo(StorageUnit, {
-    foreignKey: 'unit_id',
-    as: 'storageUnit'
-});
-
-IoTReading.belongsTo(IoTSensor, {
-    foreignKey: 'sensor_id',
-    as: 'sensor'
-});
+// Configurar asociaciones
+setupAssociations();
 
 module.exports = {
+    User,
     Owner,
+    EndUser,
     Warehouse,
     StorageUnit,
     Booking,
-    EndUser,
-    IoTSensor,
-    IoTReading
-}; 
+    BookingUnit,
+    IotSensor,
+    IotReading,
+    Payment,
+    Maintenance,
+    Notification
+};

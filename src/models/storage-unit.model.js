@@ -1,23 +1,26 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const baseFields = require('./base.model');
-const { Warehouse } = require('./warehouse.model');
-const { Booking } = require('./booking.model');
+const BaseModel = require('./base.model');
 
-const StorageUnit = sequelize.define('StorageUnit', {
-    id: {
+class StorageUnit extends BaseModel {}
+
+StorageUnit.init({
+    unitId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
-        field: 'unit_id'
+        autoIncrement: true
     },
-    warehouse_id: {
+    warehouseId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'Warehouses',
-            key: 'warehouse_id'
+            model: 'warehouses',
+            key: 'warehouseId'
         }
+    },
+    name: {
+        type: DataTypes.STRING(50),
+        allowNull: false
     },
     width: {
         type: DataTypes.DECIMAL(5, 2),
@@ -31,43 +34,34 @@ const StorageUnit = sequelize.define('StorageUnit', {
         type: DataTypes.DECIMAL(5, 2),
         allowNull: false
     },
-    capacity_m3: {
+    costPerHour: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     },
-    cost_per_hour: {
-        type: DataTypes.DECIMAL(10, 2),
+    minTemp: {
+        type: DataTypes.DECIMAL(5, 2),
         allowNull: false
     },
-    temp_range: {
-        type: DataTypes.STRING(50),
+    maxTemp: {
+        type: DataTypes.DECIMAL(5, 2),
         allowNull: false
     },
-    humidity_range: {
-        type: DataTypes.STRING(50),
+    minHumidity: {
+        type: DataTypes.DECIMAL(5, 2),
         allowNull: false
     },
-    ...baseFields
+    maxHumidity: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    status: {
+        type: DataTypes.ENUM('available', 'occupied', 'maintenance', 'reserved'),
+        defaultValue: 'available'
+    }
 }, {
-    tableName: 'StorageUnits',
-    timestamps: true,
-    paranoid: true,
-    deletedAt: 'deleted_at'
+    sequelize,
+    modelName: 'StorageUnit',
+    tableName: 'storageUnits'
 });
 
-// Función para configurar las asociaciones
-const setupAssociations = () => {
-    StorageUnit.belongsTo(Warehouse, {
-        foreignKey: 'warehouse_id',
-        as: 'warehouse'
-    });
-
-    StorageUnit.belongsToMany(Booking, {
-        through: 'Booking_StorageUnits',
-        foreignKey: 'unit_id',
-        otherKey: 'booking_id',
-        as: 'bookings'
-    });
-};
-
-module.exports = { StorageUnit, setupAssociations }; 
+module.exports = StorageUnit;

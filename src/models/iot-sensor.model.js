@@ -1,45 +1,35 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const baseFields = require('./base.model');
-const { StorageUnit } = require('./storage-unit.model');
+const BaseModel = require('./base.model');
 
-const IoTSensor = sequelize.define('IoTSensor', {
-    id: {
+class IotSensor extends BaseModel {}
+
+IotSensor.init({
+    sensorId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
-        field: 'sensor_id'
+        autoIncrement: true
     },
-    unit_id: {
+    unitId: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'StorageUnits',
-            key: 'unit_id'
+            model: 'storageUnits',
+            key: 'unitId'
         }
     },
-    sensor_type: {
-        type: DataTypes.ENUM('temperature', 'humidity', 'motion'),
+    sensorType: {
+        type: DataTypes.ENUM('temperature', 'humidity', 'motion', 'door'),
         allowNull: false
     },
     status: {
         type: DataTypes.ENUM('active', 'inactive', 'error'),
         defaultValue: 'active'
-    },
-    ...baseFields
+    }
 }, {
-    tableName: 'IoT_Sensors',
-    timestamps: true,
-    paranoid: true,
-    deletedAt: 'deleted_at'
+    sequelize,
+    modelName: 'IotSensor',
+    tableName: 'iotSensors'
 });
 
-// Función para configurar las asociaciones
-const setupAssociations = () => {
-    IoTSensor.belongsTo(StorageUnit, {
-        foreignKey: 'unit_id',
-        as: 'storageUnit'
-    });
-};
-
-module.exports = { IoTSensor, setupAssociations }; 
+module.exports = IotSensor;

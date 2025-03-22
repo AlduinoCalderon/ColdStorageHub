@@ -1,39 +1,50 @@
 const { Sequelize } = require('sequelize');
+const config = require('./config'); // Asumiendo que hay un archivo de configuración
 
+// Configuración de Sequelize para manejar correctamente los tipos espaciales
 const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
-    },
-    dialectOptions: {
-      connectTimeout: 60000,
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    },
-    retry: {
-      max: 3,
-      match: [
-        /SequelizeConnectionError/,
-        /SequelizeConnectionRefusedError/,
-        /SequelizeHostNotFoundError/,
-        /SequelizeHostNotReachableError/,
-        /SequelizeInvalidConnectionError/,
-        /SequelizeConnectionTimedOutError/
-      ]
+    config.database.name,
+    config.database.username,
+    config.database.password,
+    {
+        host: config.database.host,
+        dialect: 'mysql',
+        port: config.database.port,
+        logging: config.database.logging || false,
+        dialectOptions: {
+            // Soporte para consultas espaciales
+            supportBigNumbers: true,
+            bigNumberStrings: true
+        },
+        define: {
+            // Usar camelCase para nombres de columnas (coincidiendo con schema.sql)
+            underscored: false,
+            // Soporte para soft delete
+            paranoid: true,
+            // Evitar que Sequelize pluralice los nombres de las tablas
+            freezeTableName: false
+        }
     }
-  }
 );
 
-module.exports = sequelize; 
+// Función para probar la conexión y sincronizar modelos si es necesario
+const testConnection = async () => {
+    try {
+        await sequelize.authenticate();
+        console.log('Conexión a la base de datos establecida correctamente.');
+        
+        // Sincronización de modelos (solo en desarrollo)
+        if (process.env.NODE_ENV === 'development' && config.database.sync) {
+            await sequelize.sync({ alter: config.database.syncAlter || false });
+            console.log('Modelos sincronizados correctamente.');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Error al conectar con la base de datos:', error);
+        return false;
+    }
+};
+
+module.exports = sequelize;
+module.exports.testConnection = testConnection;
