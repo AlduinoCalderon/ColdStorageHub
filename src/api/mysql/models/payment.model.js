@@ -1,10 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../../config/mysql');
-const BaseModel = require('../../../models/base.model');
 
-class Payment extends BaseModel {}
-
-Payment.init({
+const Payment = sequelize.define('Payment', {
     paymentId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -36,11 +33,15 @@ Payment.init({
         unique: true
     }
 }, {
-    sequelize,
-    modelName: 'Payment',
     tableName: 'payments',
-    // Esta tabla sólo tiene createdAt y updatedAt, no deletedAt
-    paranoid: false
+    timestamps: true,
+    paranoid: false,
+    indexes: [
+        {
+            unique: true,
+            fields: ['transactionId']
+        }
+    ]
 });
 
 module.exports = Payment;

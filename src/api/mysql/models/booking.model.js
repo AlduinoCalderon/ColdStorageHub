@@ -1,10 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../../../config/mysql');
-const BaseModel = require('../../../models/base.model');
 
-class Booking extends BaseModel {}
-
-Booking.init({
+const Booking = sequelize.define('Booking', {
     bookingId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
@@ -43,9 +40,16 @@ Booking.init({
         allowNull: true
     }
 }, {
-    sequelize,
-    modelName: 'Booking',
-    tableName: 'bookings'
+    tableName: 'bookings',
+    timestamps: true,
+    paranoid: true,
+    validate: {
+        dateRangeValid() {
+            if (this.startDate >= this.endDate) {
+                throw new Error('La fecha de inicio debe ser anterior a la fecha de fin');
+            }
+        }
+    }
 });
 
 module.exports = Booking;
