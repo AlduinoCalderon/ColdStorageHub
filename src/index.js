@@ -6,7 +6,10 @@ require('dotenv').config();
 
 // Importar configuraciones de bases de datos
 const { sequelize, testConnection: testMySQLConnection } = require('./config/mysql');
-const { connectDB: connectMongoDB } = require('./config/mongodb');
+// const { connectDB: connectMongoDB } = require('./config/mongodb');
+
+// Importar rutas
+const warehouseRoutes = require('./api/mysql/routes/warehouse.routes');
 
 const app = express();
 
@@ -25,17 +28,26 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Rutas básicas de la API
-app.use('/api/mysql/warehouses', require('./api/mysql/routes/warehouse.routes'));
-app.use('/api/mysql/units', require('./api/mysql/routes/unit.routes'));
-app.use('/api/mysql/bookings', require('./api/mysql/routes/booking.routes'));
-app.use('/api/mongodb/sensors', require('./api/mongodb/routes/sensor.routes'));
-app.use('/api/mongodb/readings', require('./api/mongodb/routes/reading.routes'));
+// Ruta de estado
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'OK', timestamp: new Date() });
+});
 
-// Manejo básico de errores
+// Rutas API MySQL
+app.use('/api/mysql/warehouses', warehouseRoutes);
+
+// Manejo de errores 404
+app.use((req, res, next) => {
+    res.status(404).json({ message: 'Ruta no encontrada' });
+});
+
+// Manejo de errores generales
 app.use((err, req, res, next) => {
     console.error(err.stack);
-    res.status(500).send('Something broke!');
+    res.status(500).json({ 
+        message: 'Error interno del servidor',
+        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
 });
 
 // Iniciar servidor y conexiones a bases de datos
@@ -45,13 +57,19 @@ const startServer = async () => {
     try {
         // Probar conexión a MySQL
         await testMySQLConnection();
+        console.log('MySQL connection successful');
         
-        // Conectar a MongoDB
-        await connectMongoDB();
+        // Sincronizar modelos con la base de datos
+        await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
+        console.log('Database synchronized');
+        
+        // Conectar a MongoDB (comentado hasta que se configure)
+        // await connectMongoDB();
         
         // Iniciar servidor
         app.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}`);
+            console.log(`Environment: ${process.env.NODE_ENV}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);
