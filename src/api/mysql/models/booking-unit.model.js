@@ -1,6 +1,5 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const { Model } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
+const { sequelize } = require('../../../config/mysql');
 
 class BookingUnit extends Model {}
 

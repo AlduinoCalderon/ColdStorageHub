@@ -1,12 +1,13 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
 
-// Configuración para PlanetScale (MySQL)
+// Configuración para Clever Cloud (MySQL)
 const sequelize = new Sequelize(process.env.MYSQL_DATABASE_URL, {
     dialect: 'mysql',
     dialectOptions: {
         ssl: {
-            rejectUnauthorized: true,
+            require: true,
+            rejectUnauthorized: false // Permitir certificados auto-firmados en desarrollo
         },
     },
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
@@ -19,6 +20,7 @@ const testConnection = async () => {
         console.log('MySQL connection has been established successfully.');
     } catch (error) {
         console.error('Unable to connect to MySQL database:', error);
+        throw error; // Propagar el error para mejor manejo
     }
 };
 

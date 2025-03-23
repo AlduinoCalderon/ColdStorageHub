@@ -19,12 +19,40 @@ const StorageUnit = sequelize.define('StorageUnit', {
         type: DataTypes.STRING(50),
         allowNull: false
     },
+    width: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    height: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    depth: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
     costPerHour: {
         type: DataTypes.DECIMAL(10, 2),
         allowNull: false,
         validate: {
             min: 0
         }
+    },
+    minTemp: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    maxTemp: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    minHumidity: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
+    },
+    maxHumidity: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: false
     },
     status: {
         type: DataTypes.ENUM('available', 'occupied', 'maintenance', 'reserved'),
