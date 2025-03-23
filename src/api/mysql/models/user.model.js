@@ -1,20 +1,12 @@
 const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const { sequelize } = require('../../../config/mysql');
 const bcrypt = require('bcryptjs');
-const BaseModel = require('../../../models/base.model');
 
-class User extends BaseModel {
-    async comparePassword(candidatePassword) {
-        return bcrypt.compare(candidatePassword, this.password);
-    }
-}
-
-User.init({
+const User = sequelize.define('User', {
     userId: {
         type: DataTypes.INTEGER,
         primaryKey: true,
-        autoIncrement: true,
-        field: 'userId'
+        autoIncrement: true
     },
     name: {
         type: DataTypes.STRING(100),
@@ -38,18 +30,15 @@ User.init({
     },
     role: {
         type: DataTypes.ENUM('admin', 'owner', 'customer'),
-        allowNull: false,
-        defaultValue: 'customer'
+        allowNull: false
     },
     status: {
         type: DataTypes.ENUM('active', 'inactive', 'suspended'),
-        allowNull: false,
         defaultValue: 'active'
     }
 }, {
-    sequelize,
-    modelName: 'User',
     tableName: 'users',
+    paranoid: true, // Soft deletes
     hooks: {
         beforeCreate: async (user) => {
             if (user.password) {
@@ -63,5 +52,10 @@ User.init({
         }
     }
 });
+
+// Instance method to check password
+User.prototype.validatePassword = async function(password) {
+    return bcrypt.compare(password, this.password);
+};
 
 module.exports = User;
