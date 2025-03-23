@@ -1,6 +1,6 @@
 const { Warehouse, User, StorageUnit } = require('../models');
 const { Op } = require('sequelize');
-const sequelize = require('sequelize');
+const { sequelize } = require('../../../config/mysql');
 
 // Obtener todos los almacenes con filtros opcionales
 exports.getAllWarehouses = async (req, res) => {
@@ -21,8 +21,7 @@ exports.getAllWarehouses = async (req, res) => {
         if (ownerId) filters.ownerId = ownerId;
         if (search) {
             filters[Op.or] = [
-                { name: { [Op.like]: `%${search}%` } },
-                { address: { [Op.like]: `%${search}%` } }
+                { name: { [Op.like]: `%${search}%` } }
             ];
         }
 
@@ -96,36 +95,35 @@ exports.getWarehouseById = async (req, res) => {
 // Crear un nuevo almacén
 exports.createWarehouse = async (req, res) => {
     try {
-        // Validar que el usuario existe
-        const owner = await User.findByPk(req.body.ownerId);
-        if (!owner) {
-            return res.status(404).json({ error: 'Propietario no encontrado' });
-        }
-
-        // Validar que el rol del usuario sea 'owner'
-        if (owner.role !== 'owner') {
-            return res.status(403).json({ error: 'El usuario debe tener rol de propietario' });
-        }
-
-        const warehouse = await Warehouse.create(req.body);
+        const { lat, lng, ...warehouseData } = req.body;
         
-        // Obtener el almacén creado con sus relaciones
-        const warehouseWithRelations = await Warehouse.findByPk(warehouse.warehouseId, {
-            include: [
-                {
-                    model: User,
-                    as: 'owner',
-                    attributes: ['userId', 'name', 'email']
-                }
-            ]
+        // Crear el punto usando ST_GeomFromText
+        const location = sequelize.literal(
+            `ST_GeomFromText('POINT(${lng} ${lat})')`
+        );
+        
+        const warehouse = await Warehouse.create({
+            ...warehouseData,
+            location
         });
 
-        res.status(201).json(warehouseWithRelations);
+        // Transformar la respuesta para que sea legible
+        const warehouseResponse = warehouse.toJSON();
+        warehouseResponse.coordinates = {
+            lat,
+            lng
+        };
+
+        res.status(201).json({
+            success: true,
+            data: warehouseResponse
+        });
     } catch (error) {
         console.error('Error al crear almacén:', error);
-        res.status(500).json({ 
-            error: 'Error al crear almacén',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al crear almacén',
+            details: error.message
         });
     }
 };
@@ -137,17 +135,6 @@ exports.updateWarehouse = async (req, res) => {
         
         if (!warehouse) {
             return res.status(404).json({ error: 'Almacén no encontrado' });
-        }
-
-        // Si se está actualizando el propietario, validar que existe y tiene el rol correcto
-        if (req.body.ownerId) {
-            const newOwner = await User.findByPk(req.body.ownerId);
-            if (!newOwner) {
-                return res.status(404).json({ error: 'Nuevo propietario no encontrado' });
-            }
-            if (newOwner.role !== 'owner') {
-                return res.status(403).json({ error: 'El nuevo usuario debe tener rol de propietario' });
-            }
         }
         
         await warehouse.update(req.body);
@@ -207,17 +194,10 @@ exports.findNearbyWarehouses = async (req, res) => {
             return res.status(400).json({ error: 'Se requieren latitud y longitud' });
         }
 
+        const point = { type: 'Point', coordinates: [parseFloat(longitude), parseFloat(latitude)] };
+        
         const warehouses = await Warehouse.findAll({
-            where: sequelize.where(
-                sequelize.fn(
-                    'ST_Distance_Sphere',
-                    sequelize.col('location'),
-                    sequelize.fn('ST_GeomFromText', `POINT(${longitude} ${latitude})`)
-                ),
-                {
-                    [Op.lte]: radius * 1000 // convertir a metros
-                }
-            ),
+            where: sequelize.literal(`ST_Distance_Sphere(location, ST_GeomFromText('POINT(${longitude} ${latitude})')) <= ${radius * 1000}`),
             include: [
                 {
                     model: User,
@@ -227,7 +207,16 @@ exports.findNearbyWarehouses = async (req, res) => {
             ]
         });
 
-        res.json(warehouses);
+        // Agregar la distancia a cada almacén
+        const warehousesWithDistance = warehouses.map(warehouse => {
+            const distance = sequelize.literal(`ST_Distance_Sphere(location, ST_GeomFromText('POINT(${longitude} ${latitude})'))`);
+            return {
+                ...warehouse.toJSON(),
+                distance: parseFloat(distance) / 1000 // convertir a kilómetros
+            };
+        });
+
+        res.json(warehousesWithDistance);
     } catch (error) {
         console.error('Error al buscar almacenes cercanos:', error);
         res.status(500).json({ 
