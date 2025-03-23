@@ -1,0 +1,238 @@
+[1mdiff --git a/.gitignore b/.gitignore[m
+[1mindex b885eff..3f1ed65 100644[m
+[1m--- a/.gitignore[m
+[1m+++ b/.gitignore[m
+[36m@@ -1,13 +1,34 @@[m
+ # Dependencies[m
+ node_modules/[m
+[31m-npm-debug.log[m
+[31m-yarn-debug.log[m
+[31m-yarn-error.log[m
+[32m+[m[32m.pnp/[m
+[32m+[m[32m.pnp.js[m
+ [m
+[31m-# Environment variables[m
+[32m+[m[32m# Environment[m
+ .env[m
+ .env.local[m
+[31m-.env.*.local[m
+[32m+[m[32m.env.development.local[m
+[32m+[m[32m.env.test.local[m
+[32m+[m[32m.env.production.local[m
+[32m+[m
+[32m+[m[32m# Logs[m
+[32m+[m[32mlogs[m
+[32m+[m[32m*.log[m
+[32m+[m[32mnpm-debug.log*[m
+[32m+[m[32myarn-debug.log*[m
+[32m+[m[32myarn-error.log*[m
+[32m+[m
+[32m+[m[32m# Runtime data[m
+[32m+[m[32mpids[m
+[32m+[m[32m*.pid[m
+[32m+[m[32m*.seed[m
+[32m+[m[32m*.pid.lock[m
+[32m+[m
+[32m+[m[32m# Testing[m
+[32m+[m[32mcoverage/[m
+[32m+[m
+[32m+[m[32m# Production[m
+[32m+[m[32mbuild/[m
+[32m+[m[32mdist/[m
+ [m
+ # IDE[m
+ .idea/[m
+[36m@@ -17,17 +38,4 @@[m [myarn-error.log[m
+ [m
+ # OS[m
+ .DS_Store[m
+[31m-Thumbs.db[m
+[31m-[m
+[31m-# Logs[m
+[31m-logs/[m
+[31m-*.log[m
+[31m-[m
+[31m-# Build[m
+[31m-dist/[m
+[31m-build/[m
+[31m-coverage/[m
+[31m-[m
+[31m-# Temporary files[m
+[31m-tmp/[m
+[31m-temp/ [m
+\ No newline at end of file[m
+[32m+[m[32mThumbs.db[m[41m [m
+\ No newline at end of file[m
+[1mdiff --git a/README.md b/README.md[m
+[1mindex 3f0fd70..86a63cc 100644[m
+[1m--- a/README.md[m
+[1m+++ b/README.md[m
+[36m@@ -1,29 +1,33 @@[m
+[31m-# ColdStorageHub[m
+[32m+[m[32m# ColdStorages API[m
+ [m
+[31m-Plataforma web para conectar propietarios de almacenes frigoríficos con empresas y usuarios que necesitan almacenamiento refrigerado.[m
+[32m+[m[32mAPI para gestión de almacenes fríos utilizando una arquitectura híbrida MySQL + MongoDB.[m
+ [m
+[31m-## Características[m
+[32m+[m[32m## Arquitectura[m
+ [m
+[31m-- Registro y autenticación de usuarios (propietarios de almacenes y clientes)[m
+[31m-- Gestión de almacenes frigoríficos[m
+[31m-- Gestión de unidades de almacenamiento[m
+[31m-- Sistema de reservas[m
+[31m-- Monitoreo en tiempo real de sensores IoT[m
+[31m-- Búsqueda de almacenes por ubicación[m
+[31m-- Gestión de pagos y facturación[m
+[32m+[m[32mEl proyecto utiliza una arquitectura híbrida que combina:[m
+[32m+[m
+[32m+[m[32m- **MySQL** (Clever Cloud): Para datos transaccionales y relaciones críticas[m
+[32m+[m[32m  - Usuarios y autenticación[m
+[32m+[m[32m  - Información básica de almacenes[m
+[32m+[m[32m  - Reservas y pagos[m
+[32m+[m
+[32m+[m[32m- **MongoDB** (Atlas): Para datos IoT y flexibles[m
+[32m+[m[32m  - Lecturas de sensores (time series)[m
+[32m+[m[32m  - Detalles extendidos de almacenes[m
+[32m+[m[32m  - Mantenimiento y tareas[m
+ [m
+ ## Requisitos[m
+ [m
+ - Node.js >= 14.0.0[m
+[31m-- MySQL >= 5.7[m
+[31m-- npm o yarn[m
+[32m+[m[32m- MySQL (proporcionado por Clever Cloud)[m
+[32m+[m[32m- MongoDB Atlas (cuenta gratuita)[m
+ [m
+ ## Instalación[m
+ [m
+ 1. Clonar el repositorio:[m
+ ```bash[m
+[31m-git clone https://github.com/tu-usuario/cold-storage-hub.git[m
+[31m-cd cold-storage-hub[m
+[32m+[m[32mgit clone https://github.com/yourusername/ColdStorages.git[m
+[32m+[m[32mcd ColdStorages[m
+ ```[m
+ [m
+ 2. Instalar dependencias:[m
+[36m@@ -31,96 +35,91 @@[m [mcd cold-storage-hub[m
+ npm install[m
+ ```[m
+ [m
+[31m-3. Crear archivo de variables de entorno:[m
+[32m+[m[32m3. Configurar variables de entorno:[m
+ ```bash[m
+ cp .env.example .env[m
+[32m+[m[32m# Editar .env con tus credenciales[m
+ ```[m
+ [m
+[31m-4. Configurar las variables de entorno en el archivo `.env`[m
+[31m-[m
+[31m-5. Crear la base de datos:[m
+[31m-```sql[m
+[31m-CREATE DATABASE cold_storage_hub;[m
+[31m-```[m
+[32m+[m[32m## Desarrollo[m
+ [m
+[31m-6. Iniciar el servidor:[m
+ ```bash[m
+[31m-# Desarrollo[m
+[32m+[m[32m# Iniciar en modo desarrollo[m
+ npm run dev[m
+ [m
+[31m-# Producción[m
+[32m+[m[32m# Iniciar en modo producción[m
+ npm start[m
+[32m+[m
+[32m+[m[32m# Ejecutar pruebas[m
+[32m+[m[32mnpm test[m
+ ```[m
+ [m
+ ## Estructura del Proyecto[m
+ [m
+ ```[m
+ src/[m
+[31m-├── config/         # Configuraciones[m
+[31m-├── controllers/    # Controladores[m
+[31m-├── middleware/     # Middleware[m
+[31m-├── models/        # Modelos de la base de datos[m
+[31m-├── routes/        # Rutas[m
+[31m-├── app.js         # Configuración de Express[m
+[31m-└── server.js      # Punto de entrada[m
+[32m+[m[32m├── api/[m
+[32m+[m[32m│   ├── mysql/          # API para datos transaccionales[m
+[32m+[m[32m│   │   ├── models/     # Modelos Sequelize[m
+[32m+[m[32m│   │   ├── routes/     # Rutas Express[m
+[32m+[m[32m│   │   └── controllers/# Controladores[m
+[32m+[m[32m│   └── mongodb/        # API para datos IoT[m
+[32m+[m[32m│       ├── models/     # Modelos Mongoose[m
+[32m+[m[32m│       ├── routes/     # Rutas Express[m
+[32m+[m[32m│       └── controllers/# Controladores[m
+[32m+[m[32m├── config/            # Configuraciones[m
+[32m+[m[32m├── middleware/        # Middleware compartido[m
+[32m+[m[32m├── utils/            # Utilidades[m
+[32m+[m[32m└── index.js          # Punto de entrada[m
+ ```[m
+ [m
+[32m+[m[32m## Base de Datos[m
+[32m+[m
+[32m+[m[32m### MySQL (Clever Cloud)[m
+[32m+[m[32m- Host: bexln5nq6kaiskmgndpt-mysql.services.clever-cloud.com[m
+[32m+[m[32m- Base de datos: bexln5nq6kaiskmgndpt[m
+[32m+[m[32m- Puerto: 3306[m
+[32m+[m
+[32m+[m[32m### MongoDB Atlas[m
+[32m+[m[32m- Pendiente de configurar[m
+[32m+[m
+ ## API Endpoints[m
+ [m
+[31m-### Autenticación[m
+[31m-- POST /api/v1/auth/register - Registro de usuario[m
+[31m-- POST /api/v1/auth/login - Inicio de sesión[m
+[31m-- GET /api/v1/auth/profile - Obtener perfil[m
+[31m-- PATCH /api/v1/auth/profile - Actualizar perfil[m
+[31m-[m
+[31m-### Almacenes[m
+[31m-- GET /api/v1/warehouses - Obtener todos los almacenes[m
+[31m-- GET /api/v1/warehouses/:id - Obtener un almacén específico[m
+[31m-- POST /api/v1/warehouses - Crear almacén[m
+[31m-- PATCH /api/v1/warehouses/:id - Actualizar almacén[m
+[31m-- DELETE /api/v1/warehouses/:id - Eliminar almacén[m
+[31m-- GET /api/v1/warehouses/nearby - Buscar almacenes cercanos[m
+[31m-[m
+[31m-### Unidades de Almacenamiento[m
+[31m-- GET /api/v1/storage-units - Obtener todas las unidades[m
+[31m-- GET /api/v1/storage-units/:id - Obtener una unidad específica[m
+[31m-- POST /api/v1/storage-units - Crear unidad[m
+[31m-- PATCH /api/v1/storage-units/:id - Actualizar unidad[m
+[31m-- DELETE /api/v1/storage-units/:id - Eliminar unidad[m
+[31m-[m
+[31m-### Reservas[m
+[31m-- GET /api/v1/bookings - Obtener todas las reservas[m
+[31m-- GET /api/v1/bookings/:id - Obtener una reserva específica[m
+[31m-- POST /api/v1/bookings - Crear reserva[m
+[31m-- PATCH /api/v1/bookings/:id - Actualizar reserva[m
+[31m-- POST /api/v1/bookings/:id/cancel - Cancelar reserva[m
+[31m-[m
+[31m-### Sensores[m
+[31m-- GET /api/v1/sensors - Obtener todos los sensores[m
+[31m-- GET /api/v1/sensors/:id - Obtener un sensor específico[m
+[31m-- POST /api/v1/sensors - Crear sensor[m
+[31m-- PATCH /api/v1/sensors/:id - Actualizar sensor[m
+[31m-- DELETE /api/v1/sensors/:id - Eliminar sensor[m
+[31m-- POST /api/v1/sensors/readings - Registrar lectura de sensor[m
+[31m-- GET /api/v1/sensors/:id/readings - Obtener lecturas de un sensor[m
+[31m-- GET /api/v1/sensors/:id/stats - Obtener estadísticas de un sensor[m
+[31m-[m
+[31m-## Scripts Disponibles[m
+[31m-[m
+[31m-- `npm start` - Iniciar el servidor en modo producción[m
+[31m-- `npm run dev` - Iniciar el servidor en modo desarrollo[m
+[31m-- `npm test` - Ejecutar pruebas[m
+[31m-- `npm run lint` - Ejecutar linter[m
+[31m-- `npm run format` - Formatear código[m
+[31m-[m
+[31m-## Contribuir[m
+[31m-[m
+[31m-1. Fork el repositorio[m
+[31m-

@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const BaseModel = require('./base.model');
+const BaseModel = require('../../../models/base.model');
 
 class Booking extends BaseModel {}
 
