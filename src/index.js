@@ -18,7 +18,16 @@ app.use(helmet());
 app.use(cors({
     origin: process.env.CORS_ORIGIN || '*'
 }));
+
+// Configuración de express.json con logging
 app.use(express.json());
+app.use((req, res, next) => {
+    if (req.method === 'POST') {
+        console.log('Body recibido:', req.body);
+    }
+    next();
+});
+
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting básico
