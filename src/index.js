@@ -10,6 +10,10 @@ const { sequelize, testConnection: testMySQLConnection } = require('./config/mys
 
 // Importar rutas
 const warehouseRoutes = require('./api/mysql/routes/warehouse.routes');
+const storageUnitRoutes = require('./api/mysql/routes/storage-unit.routes');
+const bookingRoutes = require('./api/mysql/routes/booking.routes');
+const userRoutes = require('./api/mysql/routes/user.routes');
+const paymentRoutes = require('./api/mysql/routes/payment.routes');
 
 const app = express();
 
@@ -43,7 +47,11 @@ app.get('/api/health', (req, res) => {
 });
 
 // Rutas API MySQL
-app.use('/api/mysql/warehouses', warehouseRoutes);
+app.use('/api/warehouses', warehouseRoutes);
+app.use('/api/storage-units', storageUnitRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Manejo de errores 404
 app.use((req, res, next) => {

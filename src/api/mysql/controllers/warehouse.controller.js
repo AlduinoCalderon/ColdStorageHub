@@ -2,60 +2,20 @@ const { Warehouse, User, StorageUnit } = require('../models');
 const { Op } = require('sequelize');
 const { sequelize } = require('../../../config/mysql');
 
-// Obtener todos los almacenes con filtros opcionales
+// Obtener todos los almacenes
 exports.getAllWarehouses = async (req, res) => {
     try {
-        const {
-            status,
-            ownerId,
-            search,
-            limit = 10,
-            offset = 0,
-            sort = 'createdAt',
-            order = 'DESC'
-        } = req.query;
-
-        const filters = {};
-        
-        if (status) filters.status = status;
-        if (ownerId) filters.ownerId = ownerId;
-        if (search) {
-            filters[Op.or] = [
-                { name: { [Op.like]: `%${search}%` } }
-            ];
-        }
-
-        const warehouses = await Warehouse.findAndCountAll({
-            where: filters,
-            include: [
-                {
-                    model: User,
-                    as: 'owner',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    attributes: ['unitId', 'name', 'status', 'costPerHour']
-                }
-            ],
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            order: [[sort, order]],
-            distinct: true
-        });
-
-        res.json({
-            total: warehouses.count,
-            warehouses: warehouses.rows,
-            currentPage: Math.floor(offset / limit) + 1,
-            totalPages: Math.ceil(warehouses.count / limit)
+        const warehouses = await Warehouse.findAll();
+        res.status(200).json({
+            success: true,
+            data: warehouses
         });
     } catch (error) {
         console.error('Error al obtener almacenes:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener almacenes',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener almacenes',
+            details: error.message
         });
     }
 };
@@ -63,31 +23,23 @@ exports.getAllWarehouses = async (req, res) => {
 // Obtener un almacén por ID
 exports.getWarehouseById = async (req, res) => {
     try {
-        const warehouse = await Warehouse.findByPk(req.params.id, {
-            include: [
-                {
-                    model: User,
-                    as: 'owner',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    attributes: ['unitId', 'name', 'status', 'costPerHour']
-                }
-            ]
-        });
-        
+        const warehouse = await Warehouse.findByPk(req.params.id);
         if (!warehouse) {
-            return res.status(404).json({ error: 'Almacén no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Almacén no encontrado'
+            });
         }
-        
-        res.json(warehouse);
+        res.status(200).json({
+            success: true,
+            data: warehouse
+        });
     } catch (error) {
         console.error('Error al obtener almacén:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener almacén',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener almacén',
+            details: error.message
         });
     }
 };
@@ -95,35 +47,22 @@ exports.getWarehouseById = async (req, res) => {
 // Crear un nuevo almacén
 exports.createWarehouse = async (req, res) => {
     try {
-        const { lat, lng, ...warehouseData } = req.body;
-        
-        // Crear el punto usando ST_GeomFromText
-        const location = sequelize.literal(
-            `ST_GeomFromText('POINT(${lng} ${lat})')`
-        );
-        
-        const warehouse = await Warehouse.create({
-            ...warehouseData,
-            location
-        });
-
-        // Transformar la respuesta para que sea legible
-        const warehouseResponse = warehouse.toJSON();
-        warehouseResponse.coordinates = {
-            lat,
-            lng
-        };
-
+        const warehouse = await Warehouse.create(req.body);
         res.status(201).json({
             success: true,
-            data: warehouseResponse
+            data: warehouse
         });
     } catch (error) {
         console.error('Error al crear almacén:', error);
         res.status(500).json({
             success: false,
             message: 'Error al crear almacén',
-            details: error.message
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
@@ -132,55 +71,53 @@ exports.createWarehouse = async (req, res) => {
 exports.updateWarehouse = async (req, res) => {
     try {
         const warehouse = await Warehouse.findByPk(req.params.id);
-        
         if (!warehouse) {
-            return res.status(404).json({ error: 'Almacén no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Almacén no encontrado'
+            });
         }
-        
         await warehouse.update(req.body);
-
-        // Obtener el almacén actualizado con sus relaciones
-        const updatedWarehouse = await Warehouse.findByPk(warehouse.warehouseId, {
-            include: [
-                {
-                    model: User,
-                    as: 'owner',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    attributes: ['unitId', 'name', 'status', 'costPerHour']
-                }
-            ]
+        res.status(200).json({
+            success: true,
+            data: warehouse
         });
-
-        res.json(updatedWarehouse);
     } catch (error) {
         console.error('Error al actualizar almacén:', error);
-        res.status(500).json({ 
-            error: 'Error al actualizar almacén',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar almacén',
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
 
-// Eliminar un almacén (soft delete)
+// Eliminar un almacén
 exports.deleteWarehouse = async (req, res) => {
     try {
         const warehouse = await Warehouse.findByPk(req.params.id);
-        
         if (!warehouse) {
-            return res.status(404).json({ error: 'Almacén no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Almacén no encontrado'
+            });
         }
-        
-        await warehouse.destroy(); // Soft delete debido a paranoid: true
-        res.json({ message: 'Almacén eliminado correctamente' });
+        await warehouse.destroy();
+        res.status(200).json({
+            success: true,
+            message: 'Almacén eliminado exitosamente'
+        });
     } catch (error) {
         console.error('Error al eliminar almacén:', error);
-        res.status(500).json({ 
-            error: 'Error al eliminar almacén',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar almacén',
+            details: error.message
         });
     }
 };
