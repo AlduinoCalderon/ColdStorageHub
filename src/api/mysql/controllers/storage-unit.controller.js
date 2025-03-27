@@ -1,54 +1,20 @@
 const { StorageUnit, Warehouse } = require('../models');
 const { Op } = require('sequelize');
 
-// Obtener todas las unidades de almacenamiento con filtros opcionales
+// Obtener todas las unidades de almacenamiento
 exports.getAllStorageUnits = async (req, res) => {
     try {
-        const {
-            warehouseId,
-            status,
-            search,
-            limit = 10,
-            offset = 0,
-            sort = 'createdAt',
-            order = 'DESC'
-        } = req.query;
-
-        const filters = {};
-        
-        if (warehouseId) filters.warehouseId = warehouseId;
-        if (status) filters.status = status;
-        if (search) {
-            filters[Op.or] = [
-                { name: { [Op.like]: `%${search}%` } }
-            ];
-        }
-
-        const units = await StorageUnit.findAndCountAll({
-            where: filters,
-            include: [
-                {
-                    model: Warehouse,
-                    as: 'warehouse',
-                    attributes: ['warehouseId', 'name', 'status']
-                }
-            ],
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            order: [[sort, order]]
-        });
-
-        res.json({
-            total: units.count,
-            units: units.rows,
-            currentPage: Math.floor(offset / limit) + 1,
-            totalPages: Math.ceil(units.count / limit)
+        const storageUnits = await StorageUnit.findAll();
+        res.status(200).json({
+            success: true,
+            data: storageUnits
         });
     } catch (error) {
         console.error('Error al obtener unidades de almacenamiento:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener unidades de almacenamiento',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener unidades de almacenamiento',
+            details: error.message
         });
     }
 };
@@ -56,26 +22,23 @@ exports.getAllStorageUnits = async (req, res) => {
 // Obtener una unidad de almacenamiento por ID
 exports.getStorageUnitById = async (req, res) => {
     try {
-        const unit = await StorageUnit.findByPk(req.params.id, {
-            include: [
-                {
-                    model: Warehouse,
-                    as: 'warehouse',
-                    attributes: ['warehouseId', 'name', 'status']
-                }
-            ]
-        });
-        
-        if (!unit) {
-            return res.status(404).json({ error: 'Unidad de almacenamiento no encontrada' });
+        const storageUnit = await StorageUnit.findByPk(req.params.id);
+        if (!storageUnit) {
+            return res.status(404).json({
+                success: false,
+                message: 'Unidad de almacenamiento no encontrada'
+            });
         }
-        
-        res.json(unit);
+        res.status(200).json({
+            success: true,
+            data: storageUnit
+        });
     } catch (error) {
         console.error('Error al obtener unidad de almacenamiento:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener unidad de almacenamiento',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener unidad de almacenamiento',
+            details: error.message
         });
     }
 };
@@ -83,29 +46,22 @@ exports.getStorageUnitById = async (req, res) => {
 // Crear una nueva unidad de almacenamiento
 exports.createStorageUnit = async (req, res) => {
     try {
-        const unit = await StorageUnit.create(req.body);
-        
-        // Obtener la unidad con su almacén asociado
-        const unitWithWarehouse = await StorageUnit.findByPk(unit.unitId, {
-            include: [
-                {
-                    model: Warehouse,
-                    as: 'warehouse',
-                    attributes: ['warehouseId', 'name', 'status']
-                }
-            ]
-        });
-
+        const storageUnit = await StorageUnit.create(req.body);
         res.status(201).json({
             success: true,
-            data: unitWithWarehouse
+            data: storageUnit
         });
     } catch (error) {
         console.error('Error al crear unidad de almacenamiento:', error);
         res.status(500).json({
             success: false,
             message: 'Error al crear unidad de almacenamiento',
-            details: error.message
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
@@ -113,51 +69,54 @@ exports.createStorageUnit = async (req, res) => {
 // Actualizar una unidad de almacenamiento
 exports.updateStorageUnit = async (req, res) => {
     try {
-        const unit = await StorageUnit.findByPk(req.params.id);
-        
-        if (!unit) {
-            return res.status(404).json({ error: 'Unidad de almacenamiento no encontrada' });
+        const storageUnit = await StorageUnit.findByPk(req.params.id);
+        if (!storageUnit) {
+            return res.status(404).json({
+                success: false,
+                message: 'Unidad de almacenamiento no encontrada'
+            });
         }
-        
-        await unit.update(req.body);
-
-        // Obtener la unidad actualizada con su almacén asociado
-        const updatedUnit = await StorageUnit.findByPk(unit.unitId, {
-            include: [
-                {
-                    model: Warehouse,
-                    as: 'warehouse',
-                    attributes: ['warehouseId', 'name', 'status']
-                }
-            ]
+        await storageUnit.update(req.body);
+        res.status(200).json({
+            success: true,
+            data: storageUnit
         });
-
-        res.json(updatedUnit);
     } catch (error) {
         console.error('Error al actualizar unidad de almacenamiento:', error);
-        res.status(500).json({ 
-            error: 'Error al actualizar unidad de almacenamiento',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar unidad de almacenamiento',
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
 
-// Eliminar una unidad de almacenamiento (soft delete)
+// Eliminar una unidad de almacenamiento
 exports.deleteStorageUnit = async (req, res) => {
     try {
-        const unit = await StorageUnit.findByPk(req.params.id);
-        
-        if (!unit) {
-            return res.status(404).json({ error: 'Unidad de almacenamiento no encontrada' });
+        const storageUnit = await StorageUnit.findByPk(req.params.id);
+        if (!storageUnit) {
+            return res.status(404).json({
+                success: false,
+                message: 'Unidad de almacenamiento no encontrada'
+            });
         }
-        
-        await unit.destroy(); // Soft delete debido a paranoid: true
-        res.json({ message: 'Unidad de almacenamiento eliminada correctamente' });
+        await storageUnit.destroy();
+        res.status(200).json({
+            success: true,
+            message: 'Unidad de almacenamiento eliminada exitosamente'
+        });
     } catch (error) {
         console.error('Error al eliminar unidad de almacenamiento:', error);
-        res.status(500).json({ 
-            error: 'Error al eliminar unidad de almacenamiento',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar unidad de almacenamiento',
+            details: error.message
         });
     }
 };

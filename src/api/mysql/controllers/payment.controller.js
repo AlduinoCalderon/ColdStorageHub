@@ -1,61 +1,20 @@
 const { Payment, Booking, User } = require('../models');
 const { Op } = require('sequelize');
 
-// Obtener todos los pagos con filtros opcionales
+// Obtener todos los pagos
 exports.getAllPayments = async (req, res) => {
     try {
-        const {
-            userId,
-            bookingId,
-            status,
-            search,
-            limit = 10,
-            offset = 0,
-            sort = 'createdAt',
-            order = 'DESC'
-        } = req.query;
-
-        const filters = {};
-        
-        if (userId) filters.userId = userId;
-        if (bookingId) filters.bookingId = bookingId;
-        if (status) filters.status = status;
-        if (search) {
-            filters[Op.or] = [
-                { paymentId: { [Op.like]: `%${search}%` } }
-            ];
-        }
-
-        const payments = await Payment.findAndCountAll({
-            where: filters,
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: Booking,
-                    as: 'booking',
-                    attributes: ['bookingId', 'status', 'startDate', 'endDate']
-                }
-            ],
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            order: [[sort, order]]
-        });
-
-        res.json({
-            total: payments.count,
-            payments: payments.rows,
-            currentPage: Math.floor(offset / limit) + 1,
-            totalPages: Math.ceil(payments.count / limit)
+        const payments = await Payment.findAll();
+        res.status(200).json({
+            success: true,
+            data: payments
         });
     } catch (error) {
         console.error('Error al obtener pagos:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener pagos',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener pagos',
+            details: error.message
         });
     }
 };
@@ -63,31 +22,23 @@ exports.getAllPayments = async (req, res) => {
 // Obtener un pago por ID
 exports.getPaymentById = async (req, res) => {
     try {
-        const payment = await Payment.findByPk(req.params.id, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: Booking,
-                    as: 'booking',
-                    attributes: ['bookingId', 'status', 'startDate', 'endDate']
-                }
-            ]
-        });
-        
+        const payment = await Payment.findByPk(req.params.id);
         if (!payment) {
-            return res.status(404).json({ error: 'Pago no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Pago no encontrado'
+            });
         }
-        
-        res.json(payment);
+        res.status(200).json({
+            success: true,
+            data: payment
+        });
     } catch (error) {
         console.error('Error al obtener pago:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener pago',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener pago',
+            details: error.message
         });
     }
 };
@@ -96,33 +47,21 @@ exports.getPaymentById = async (req, res) => {
 exports.createPayment = async (req, res) => {
     try {
         const payment = await Payment.create(req.body);
-        
-        // Obtener el pago con sus relaciones
-        const paymentWithRelations = await Payment.findByPk(payment.paymentId, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: Booking,
-                    as: 'booking',
-                    attributes: ['bookingId', 'status', 'startDate', 'endDate']
-                }
-            ]
-        });
-
         res.status(201).json({
             success: true,
-            data: paymentWithRelations
+            data: payment
         });
     } catch (error) {
         console.error('Error al crear pago:', error);
         res.status(500).json({
             success: false,
             message: 'Error al crear pago',
-            details: error.message
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
@@ -131,55 +70,53 @@ exports.createPayment = async (req, res) => {
 exports.updatePayment = async (req, res) => {
     try {
         const payment = await Payment.findByPk(req.params.id);
-        
         if (!payment) {
-            return res.status(404).json({ error: 'Pago no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Pago no encontrado'
+            });
         }
-        
         await payment.update(req.body);
-
-        // Obtener el pago actualizado con sus relaciones
-        const updatedPayment = await Payment.findByPk(payment.paymentId, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: Booking,
-                    as: 'booking',
-                    attributes: ['bookingId', 'status', 'startDate', 'endDate']
-                }
-            ]
+        res.status(200).json({
+            success: true,
+            data: payment
         });
-
-        res.json(updatedPayment);
     } catch (error) {
         console.error('Error al actualizar pago:', error);
-        res.status(500).json({ 
-            error: 'Error al actualizar pago',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar pago',
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
 
-// Eliminar un pago (soft delete)
+// Eliminar un pago
 exports.deletePayment = async (req, res) => {
     try {
         const payment = await Payment.findByPk(req.params.id);
-        
         if (!payment) {
-            return res.status(404).json({ error: 'Pago no encontrado' });
+            return res.status(404).json({
+                success: false,
+                message: 'Pago no encontrado'
+            });
         }
-        
-        await payment.destroy(); // Soft delete debido a paranoid: true
-        res.json({ message: 'Pago eliminado correctamente' });
+        await payment.destroy();
+        res.status(200).json({
+            success: true,
+            message: 'Pago eliminado exitosamente'
+        });
     } catch (error) {
         console.error('Error al eliminar pago:', error);
-        res.status(500).json({ 
-            error: 'Error al eliminar pago',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar pago',
+            details: error.message
         });
     }
 };

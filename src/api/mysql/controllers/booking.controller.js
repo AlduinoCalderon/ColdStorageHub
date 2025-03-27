@@ -1,65 +1,20 @@
 const { Booking, User, StorageUnit, Warehouse } = require('../models');
 const { Op } = require('sequelize');
 
-// Obtener todas las reservas con filtros opcionales
+// Obtener todas las reservas
 exports.getAllBookings = async (req, res) => {
     try {
-        const {
-            userId,
-            status,
-            search,
-            limit = 10,
-            offset = 0,
-            sort = 'createdAt',
-            order = 'DESC'
-        } = req.query;
-
-        const filters = {};
-        
-        if (userId) filters.userId = userId;
-        if (status) filters.status = status;
-        if (search) {
-            filters[Op.or] = [
-                { bookingId: { [Op.like]: `%${search}%` } }
-            ];
-        }
-
-        const bookings = await Booking.findAndCountAll({
-            where: filters,
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    include: [
-                        {
-                            model: Warehouse,
-                            as: 'warehouse',
-                            attributes: ['warehouseId', 'name']
-                        }
-                    ]
-                }
-            ],
-            limit: parseInt(limit),
-            offset: parseInt(offset),
-            order: [[sort, order]]
-        });
-
-        res.json({
-            total: bookings.count,
-            bookings: bookings.rows,
-            currentPage: Math.floor(offset / limit) + 1,
-            totalPages: Math.ceil(bookings.count / limit)
+        const bookings = await Booking.findAll();
+        res.status(200).json({
+            success: true,
+            data: bookings
         });
     } catch (error) {
         console.error('Error al obtener reservas:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener reservas',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener reservas',
+            details: error.message
         });
     }
 };
@@ -67,167 +22,101 @@ exports.getAllBookings = async (req, res) => {
 // Obtener una reserva por ID
 exports.getBookingById = async (req, res) => {
     try {
-        const booking = await Booking.findByPk(req.params.id, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    include: [
-                        {
-                            model: Warehouse,
-                            as: 'warehouse',
-                            attributes: ['warehouseId', 'name']
-                        }
-                    ]
-                }
-            ]
-        });
-        
+        const booking = await Booking.findByPk(req.params.id);
         if (!booking) {
-            return res.status(404).json({ error: 'Reserva no encontrada' });
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva no encontrada'
+            });
         }
-        
-        res.json(booking);
+        res.status(200).json({
+            success: true,
+            data: booking
+        });
     } catch (error) {
         console.error('Error al obtener reserva:', error);
-        res.status(500).json({ 
-            error: 'Error al obtener reserva',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener reserva',
+            details: error.message
         });
     }
 };
 
 // Crear una nueva reserva
 exports.createBooking = async (req, res) => {
-    const t = await sequelize.transaction();
-
     try {
-        const { units, ...bookingData } = req.body;
-
-        // Crear la reserva
-        const booking = await Booking.create(bookingData, { transaction: t });
-
-        // Asociar las unidades a la reserva
-        if (units && units.length > 0) {
-            await booking.addUnits(units, { transaction: t });
-        }
-
-        await t.commit();
-
-        // Obtener la reserva completa con sus relaciones
-        const bookingWithRelations = await Booking.findByPk(booking.bookingId, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    include: [
-                        {
-                            model: Warehouse,
-                            as: 'warehouse',
-                            attributes: ['warehouseId', 'name']
-                        }
-                    ]
-                }
-            ]
-        });
-
+        const booking = await Booking.create(req.body);
         res.status(201).json({
             success: true,
-            data: bookingWithRelations
+            data: booking
         });
     } catch (error) {
-        await t.rollback();
         console.error('Error al crear reserva:', error);
         res.status(500).json({
             success: false,
             message: 'Error al crear reserva',
-            details: error.message
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
 
 // Actualizar una reserva
 exports.updateBooking = async (req, res) => {
-    const t = await sequelize.transaction();
-
     try {
         const booking = await Booking.findByPk(req.params.id);
-        
         if (!booking) {
-            return res.status(404).json({ error: 'Reserva no encontrada' });
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva no encontrada'
+            });
         }
-
-        const { units, ...bookingData } = req.body;
-        
-        // Actualizar la reserva
-        await booking.update(bookingData, { transaction: t });
-
-        // Actualizar las unidades asociadas si se proporcionan
-        if (units) {
-            await booking.setUnits(units, { transaction: t });
-        }
-        
-        await t.commit();
-
-        // Obtener la reserva actualizada con sus relaciones
-        const updatedBooking = await Booking.findByPk(booking.bookingId, {
-            include: [
-                {
-                    model: User,
-                    as: 'user',
-                    attributes: ['userId', 'name', 'email']
-                },
-                {
-                    model: StorageUnit,
-                    as: 'units',
-                    include: [
-                        {
-                            model: Warehouse,
-                            as: 'warehouse',
-                            attributes: ['warehouseId', 'name']
-                        }
-                    ]
-                }
-            ]
+        await booking.update(req.body);
+        res.status(200).json({
+            success: true,
+            data: booking
         });
-
-        res.json(updatedBooking);
     } catch (error) {
-        await t.rollback();
         console.error('Error al actualizar reserva:', error);
-        res.status(500).json({ 
-            error: 'Error al actualizar reserva',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al actualizar reserva',
+            details: error.message,
+            validationErrors: error.errors?.map(e => ({
+                message: e.message,
+                field: e.path,
+                value: e.value
+            }))
         });
     }
 };
 
-// Eliminar una reserva (soft delete)
+// Eliminar una reserva
 exports.deleteBooking = async (req, res) => {
     try {
         const booking = await Booking.findByPk(req.params.id);
-        
         if (!booking) {
-            return res.status(404).json({ error: 'Reserva no encontrada' });
+            return res.status(404).json({
+                success: false,
+                message: 'Reserva no encontrada'
+            });
         }
-        
-        await booking.destroy(); // Soft delete debido a paranoid: true
-        res.json({ message: 'Reserva eliminada correctamente' });
+        await booking.destroy();
+        res.status(200).json({
+            success: true,
+            message: 'Reserva eliminada exitosamente'
+        });
     } catch (error) {
         console.error('Error al eliminar reserva:', error);
-        res.status(500).json({ 
-            error: 'Error al eliminar reserva',
-            details: error.message 
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar reserva',
+            details: error.message
         });
     }
 };
