@@ -29,19 +29,12 @@ const Payment = sequelize.define('Payment', {
     },
     transactionId: {
         type: DataTypes.STRING(100),
-        allowNull: true,
-        unique: true
+        allowNull: true
     }
 }, {
     tableName: 'payments',
     timestamps: true,
-    paranoid: false,
-    indexes: [
-        {
-            unique: true,
-            fields: ['transactionId']
-        }
-    ]
+    paranoid: false
 });
 
 module.exports = Payment;
