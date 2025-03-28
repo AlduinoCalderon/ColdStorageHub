@@ -4,11 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// Importar configuraciones de bases de datos
 const { sequelize, testConnection: testMySQLConnection } = require('./config/mysql');
-// const { connectDB: connectMongoDB } = require('./config/mongodb');
-
-// Importar rutas
 const warehouseRoutes = require('./api/mysql/routes/warehouse.routes');
 const storageUnitRoutes = require('./api/mysql/routes/storage-unit.routes');
 const bookingRoutes = require('./api/mysql/routes/booking.routes');
@@ -17,27 +13,29 @@ const paymentRoutes = require('./api/mysql/routes/payment.routes');
 
 const app = express();
 
-// Middleware básico
+// Middleware de seguridad
 app.use(helmet());
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*'
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+    credentials: true
 }));
 
-// Configuración de express.json con logging
-app.use(express.json());
+// Configuración de body parsing con límite
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Middleware de logging solo en desarrollo
 app.use((req, res, next) => {
-    if (req.method === 'POST') {
+    if (process.env.NODE_ENV === 'development' && req.method === 'POST') {
         console.log('Body recibido:', req.body);
     }
     next();
 });
 
-app.use(express.urlencoded({ extended: true }));
-
-// Rate limiting básico
+// Rate limiting con validación de variables de entorno
 const limiter = rateLimit({
-    windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
-    max: process.env.RATE_LIMIT_MAX || 100
+    windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+    max: Number(process.env.RATE_LIMIT_MAX) || 100
 });
 app.use(limiter);
 
@@ -55,43 +53,37 @@ app.use('/api/payments', paymentRoutes);
 
 // Manejo de errores 404
 app.use((req, res, next) => {
-    res.status(404).json({ message: 'Ruta no encontrada' });
+    const error = new Error('Ruta no encontrada');
+    error.status = 404;
+    next(error);
 });
 
 // Manejo de errores generales
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ 
-        message: 'Error interno del servidor',
-        error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    console.error(`[ERROR] ${err.message}`);
+    res.status(err.status || 500).json({
+        message: err.status === 404 ? err.message : 'Error interno del servidor',
+        ...(process.env.NODE_ENV === 'development' && { error: err.stack })
     });
 });
 
-// Iniciar servidor y conexiones a bases de datos
 const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
     try {
-        // Probar conexión a MySQL
         await testMySQLConnection();
-        console.log('MySQL connection successful');
-        
-        // Sincronizar modelos con la base de datos
+        console.log('✅ MySQL connection successful');
+
         await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
-        console.log('Database synchronized');
-        
-        // Conectar a MongoDB (comentado hasta que se configure)
-        // await connectMongoDB();
-        
-        // Iniciar servidor
+        console.log('✅ Database synchronized');
+
         app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
-            console.log(`Environment: ${process.env.NODE_ENV}`);
+            console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
         });
     } catch (error) {
-        console.error('Failed to start server:', error);
-        process.exit(1);
+        console.error('❌ Failed to start server:', error);
+        setTimeout(() => process.exit(1), 5000); // Espera 5 segundos antes de salir
     }
 };
 
-startServer(); 
+startServer();
