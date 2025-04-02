@@ -1,4 +1,4 @@
-const { StorageUnit, warehouses } = require('../models');
+const { StorageUnit, Warehouse } = require('../models');
 const { Op } = require('sequelize');
 
 // Obtener todas las unidades de almacenamiento
@@ -30,8 +30,8 @@ exports.getStorageUnitsByWarehouseId = async (req, res) => {
             where: { warehouseId },
             include: [
                 {
-                    model: warehouses,
-                    as: 'warehouses',
+                    model: Warehouse,
+                    as: 'warehouse',
                     required: true // INNER JOIN
                 }
             ]
