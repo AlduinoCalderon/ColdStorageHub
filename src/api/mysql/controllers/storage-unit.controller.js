@@ -18,7 +18,46 @@ exports.getAllStorageUnits = async (req, res) => {
         });
     }
 };
+// Añadir al archivo: src/api/mysql/controllers/storage-unit.controller.js
 
+// Obtener unidades de almacenamiento por ID de almacén con JOIN
+exports.getStorageUnitsByWarehouseId = async (req, res) => {
+    try {
+        const warehouseId = req.params.id;
+        
+        // Realizar join entre StorageUnit y Warehouse
+        const storageUnits = await StorageUnit.findAll({
+            where: { warehouseId },
+            include: [
+                {
+                    model: Warehouses,
+                    as: 'warehouses',
+                    required: true // INNER JOIN
+                }
+            ]
+        });
+        
+        if (storageUnits.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: `No se encontraron unidades de almacenamiento para el almacén con ID ${warehouseId}`
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            count: storageUnits.length,
+            data: storageUnits
+        });
+    } catch (error) {
+        console.error('Error al obtener unidades de almacenamiento por ID de almacén:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener unidades de almacenamiento por ID de almacén',
+            details: error.message
+        });
+    }
+};
 // Obtener una unidad de almacenamiento por ID
 exports.getStorageUnitById = async (req, res) => {
     try {
