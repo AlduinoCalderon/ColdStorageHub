@@ -3,12 +3,16 @@ import json
 import time
 import random
 from datetime import datetime
+import os
+from dotenv import load_dotenv
 
-# Configuración MQTT
-MQTT_BROKER = "chameleon.lmq.cloudamqp.com"
-MQTT_PORT = 1883
-MQTT_USER = "ylltduke:ylltduke"
-MQTT_PASSWORD = "0l2ahZ_tmYsp7Dt57IOJU8NcbccV5tw9"
+# Cargar variables de entorno
+load_dotenv()
+
+# Configuración MQTT desde variables de entorno
+MQTT_BROKER = os.getenv('MQTT_BROKER_URL')
+MQTT_USER = os.getenv('MQTT_USERNAME')
+MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
 UNIT_ID = 1
 
 def on_connect(client, userdata, flags, rc):
@@ -25,7 +29,7 @@ client.on_connect = on_connect
 client.on_publish = on_publish
 
 # Conectar al broker
-client.connect(MQTT_BROKER, MQTT_PORT, 60)
+client.connect(MQTT_BROKER, 1883, 60)
 client.loop_start()
 
 # Contador de mensajes

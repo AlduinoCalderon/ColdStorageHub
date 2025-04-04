@@ -19,9 +19,9 @@ const paymentRoutes = require('./api/mysql/routes/payment.routes');
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // Configuración MQTT
-const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL || 'mqtt://localhost';
-const MQTT_USERNAME = process.env.MQTT_USERNAME || 'alduino';
-const MQTT_PASSWORD = process.env.MQTT_PASSWORD || '12345';
+const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
+const MQTT_USERNAME = process.env.MQTT_USERNAME;
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
 // Modelo de MongoDB para las lecturas
 const ReadingSchema = new mongoose.Schema({
@@ -42,7 +42,10 @@ const mqttClient = mqtt.connect(MQTT_BROKER_URL, {
 // Conexión a MongoDB
 mongoose.connect(MONGODB_URI)
   .then(() => console.log('Conectado a MongoDB'))
-  .catch(err => console.error('Error conectando a MongoDB:', err));
+  .catch(err => {
+    console.error('Error conectando a MongoDB:', err);
+    console.log('Por favor, asegúrate de que tu IP está en la lista blanca de MongoDB Atlas');
+  });
 
 // Configuración MQTT
 mqttClient.on('connect', () => {
