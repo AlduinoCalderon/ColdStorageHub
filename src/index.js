@@ -36,10 +36,12 @@ const ReadingSchema = new mongoose.Schema({
 
 const Reading = mongoose.model('Reading', ReadingSchema);
 
-// Crear cliente MQTT
+// Crear cliente MQTT con opciones de reconexión
 const mqttClient = mqtt.connect(mqttUrl, {
   username: MQTT_USERNAME,
-  password: MQTT_PASSWORD
+  password: MQTT_PASSWORD,
+  reconnectPeriod: 5000, // Intentar reconectar cada 5 segundos
+  connectTimeout: 30000  // Tiempo de espera de conexión de 30 segundos
 });
 
 // Conexión a MongoDB
@@ -50,10 +52,28 @@ mongoose.connect(MONGODB_URI)
     console.log('Por favor, asegúrate de que tu IP está en la lista blanca de MongoDB Atlas');
   });
 
-// Configuración MQTT
+// Manejo de eventos MQTT
 mqttClient.on('connect', () => {
   console.log('Conectado al broker MQTT');
-  mqttClient.subscribe('warehouse/unit/+/sensor/+');
+  mqttClient.subscribe('warehouse/unit/+/sensor/+', (err) => {
+    if (err) {
+      console.error('Error al suscribirse:', err);
+    } else {
+      console.log('Suscrito a los tópicos de sensores');
+    }
+  });
+});
+
+mqttClient.on('error', (error) => {
+  console.error('Error de MQTT:', error);
+});
+
+mqttClient.on('reconnect', () => {
+  console.log('Reconectando al broker MQTT...');
+});
+
+mqttClient.on('close', () => {
+  console.log('Conexión MQTT cerrada');
 });
 
 mqttClient.on('message', async (topic, message) => {
