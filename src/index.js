@@ -42,8 +42,59 @@ const client = mqtt.connect(mqttUrl, {
   username: MQTT_USERNAME,
   password: MQTT_PASSWORD,
   port: 8883,
-  rejectUnauthorized: false
+  rejectUnauthorized: false,
+  protocol: 'mqtt',
+  protocolVersion: 4
 });
+
+// Variables para almacenar lecturas
+let readingsBuffer = [];
+const BUFFER_SIZE = 20;
+
+// Función para procesar el buffer y enviar datos
+async function processReadingsBuffer() {
+    if (readingsBuffer.length < BUFFER_SIZE) return;
+
+    // Separar lecturas por tipo
+    const tempReadings = readingsBuffer.filter(r => r.sensorType === 'temperature');
+    const humReadings = readingsBuffer.filter(r => r.sensorType === 'humidity');
+
+    // Calcular máximos y mínimos
+    const minTemp = Math.min(...tempReadings.map(r => r.value));
+    const maxTemp = Math.max(...tempReadings.map(r => r.value));
+    const minHumidity = Math.min(...humReadings.map(r => r.value));
+    const maxHumidity = Math.max(...humReadings.map(r => r.value));
+
+    // Crear payload para la API
+    const payload = {
+        minTemp: minTemp.toString(),
+        maxTemp: maxTemp.toString(),
+        minHumidity: minHumidity.toString(),
+        maxHumidity: maxHumidity.toString()
+    };
+
+    try {
+        // Enviar datos a la API
+        const response = await fetch('https://coldstoragehub.onrender.com/API/storage-unit/2', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        console.log('Datos enviados a la API:', payload);
+        
+        // Limpiar el buffer después de procesar
+        readingsBuffer = [];
+    } catch (error) {
+        console.error('Error al enviar datos a la API:', error);
+    }
+}
 
 // Conexión a MongoDB
 mongoose.connect(MONGODB_URI)
@@ -142,31 +193,45 @@ client.on('connect', () => {
 });
 
 client.on('message', async (topic, message) => {
-  console.log('Mensaje recibido en tópico:', topic);
-  console.log('Contenido del mensaje:', message.toString());
-  
-  try {
-    const data = JSON.parse(message);
-    const unitId = topic.split('/')[2];
-    const sensorType = topic.split('/')[4];
+    console.log('Mensaje recibido en tópico:', topic);
+    console.log('Contenido del mensaje:', message.toString());
     
-    console.log('Procesando lectura:', {
-      unitId,
-      sensorType,
-      value: data.value,
-      timestamp: data.timestamp
-    });
+    try {
+        const data = JSON.parse(message);
+        const unitId = topic.split('/')[2];
+        const sensorType = topic.split('/')[4];
+        
+        console.log('Procesando lectura:', {
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: data.timestamp
+        });
 
-    const reading = new Reading({
-      unitId,
-      sensorType,
-      value: data.value,
-      timestamp: data.timestamp
-    });
+        // Guardar en MongoDB
+        const reading = new Reading({
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: data.timestamp
+        });
 
-    await reading.save();
-    console.log('Lectura guardada en MongoDB:', reading);
-  } catch (error) {
-    console.error('Error procesando mensaje:', error);
-  }
+        await reading.save();
+        console.log('Lectura guardada en MongoDB:', reading);
+
+        // Agregar al buffer
+        readingsBuffer.push({
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: data.timestamp
+        });
+
+        // Procesar buffer si está lleno
+        if (readingsBuffer.length >= BUFFER_SIZE) {
+            await processReadingsBuffer();
+        }
+    } catch (error) {
+        console.error('Error procesando mensaje:', error);
+    }
 });
