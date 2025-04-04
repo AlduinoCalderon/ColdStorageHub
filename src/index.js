@@ -13,9 +13,9 @@ const bookingRoutes = require('./api/mysql/routes/booking.routes');
 const userRoutes = require('./api/mysql/routes/user.routes');
 const paymentRoutes = require('./api/mysql/routes/payment.routes');
 
-// MongoDB & MQTT config (nuevo)
-const { connectMongoDB } = require('./config/mongodb');
-const { setupReadingListener } = require('./api/mongodb/triggers/batch-processor');
+// MongoDB & MQTT config (temporalmente deshabilitado)
+// const { connectMongoDB } = require('./config/mongodb');
+// const { setupReadingListener } = require('./api/mongodb/triggers/batch-processor');
 
 const app = express();
 
@@ -81,74 +81,41 @@ app.use((err, req, res, next) => {
     });
 });
 
-const PORT = process.env.PORT || 3000;
+// Comentamos temporalmente la función startMongodbMqtt
+// async function startMongodbMqtt() {
+//     try {
+//         await connectMongoDB();
+//         await setupReadingListener();
+//         console.log('MongoDB y MQTT configurados correctamente');
+//     } catch (error) {
+//         console.error('Error al configurar MongoDB y MQTT:', error);
+//     }
+// }
 
-// Función para iniciar el servicio MongoDB/MQTT (solo si está habilitado)
-async function startMongodbMqtt() {
-    if (process.env.ENABLE_MONGODB_MQTT === 'true') {
-        try {
-            // Conectar a MongoDB
-            await connectMongoDB();
-            global.mongodbConnected = true;
-            console.log('✅ MongoDB connection successful');
-            
-            // Configurar MQTT y triggers
-            const mqttClient = require('./mqtt');
-            global.mqttClient = mqttClient;
-            global.mqttConnected = true;
-            
-            // Configurar listener para procesamiento por lotes
-            await setupReadingListener();
-            console.log('✅ IoT monitoring services started');
-        } catch (error) {
-            console.error('❌ Failed to start MongoDB/MQTT services:', error);
-            global.mongodbConnected = false;
-            global.mqttConnected = false;
-        }
-    } else {
-        console.log('ℹ️ MongoDB/MQTT services disabled by configuration');
-    }
-}
-
-// Función principal para iniciar el servidor
 const startServer = async () => {
     try {
-        // Iniciar MySQL (siempre requerido)
+        // Probar conexión MySQL
         await testMySQLConnection();
-        console.log('✅ MySQL connection successful');
+        console.log('Conexión a MySQL establecida correctamente');
 
-        await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
-        console.log('✅ Database synchronized');
+        // Iniciar MongoDB y MQTT (temporalmente deshabilitado)
+        // await startMongodbMqtt();
 
-        // Iniciar MongoDB/MQTT (opcional según configuración)
-        await startMongodbMqtt();
+        // Configurar rutas
+        app.use('/api/warehouses', warehouseRoutes);
+        app.use('/api/storage-units', storageUnitRoutes);
+        app.use('/api/bookings', bookingRoutes);
+        app.use('/api/users', userRoutes);
+        app.use('/api/payments', paymentRoutes);
 
-        // Iniciar servidor Express
+        const PORT = process.env.PORT || 3001;
         app.listen(PORT, () => {
-            console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+            console.log(`Servidor corriendo en puerto ${PORT}`);
         });
     } catch (error) {
-        console.error('❌ Failed to start server:', error);
-        setTimeout(() => process.exit(1), 5000); // Espera 5 segundos antes de salir
+        console.error('Error al iniciar el servidor:', error);
+        process.exit(1);
     }
 };
-
-// Flag para capturar SIGINT y cerrar conexiones correctamente
-process.on('SIGINT', async () => {
-    console.log('Cerrando conexiones...');
-    
-    // Cerrar MySQL
-    await sequelize.close();
-    console.log('MySQL connection closed');
-    
-    // Cerrar MongoDB/MQTT si están activos
-    if (global.mqttClient) {
-        global.mqttClient.end();
-        console.log('MQTT connection closed');
-    }
-    
-    console.log('Goodbye!');
-    process.exit(0);
-});
 
 startServer();
