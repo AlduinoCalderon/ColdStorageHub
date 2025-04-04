@@ -144,7 +144,7 @@ const startServer = async () => {
             next();
         });
 
-        // Rate limiting con validación de variables de entorno
+        // Rate  limiting con validación de variables de entorno
         const limiter = rateLimit({
             windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
             max: Number(process.env.RATE_LIMIT_MAX) || 100
