@@ -53,12 +53,14 @@ client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
 client.tls_set()  # Habilitar TLS
 client.tls_insecure_set(True)  # Permitir certificados autofirmados
 
+# Configurar opciones adicionales
+client.connect_timeout = 30
+client.keepalive = 60
+client.clean_start = True
+
 client.on_connect = on_connect
 client.on_publish = on_publish
 client.on_disconnect = on_disconnect
-
-# Configurar tiempo de espera más largo
-client.connect_timeout = 30
 
 try:
     print(f"Intentando conectar a {MQTT_BROKER}...")
@@ -71,31 +73,22 @@ try:
         print(f"Error: No se puede resolver el host {MQTT_BROKER}")
         exit(1)
     
-    # Intentar conectar con diferentes puertos
-    ports = [1883, 8883]  # Puertos comunes para MQTT
-    connected = False
-    
-    for port in ports:
-        try:
-            print(f"Intentando conectar al puerto {port}...")
-            client.connect(MQTT_BROKER, port, 60)
-            client.loop_start()
-            time.sleep(2)
-            
-            if client.is_connected():
-                print(f"Conectado exitosamente al puerto {port}")
-                connected = True
-                break
-            else:
-                print(f"No se pudo conectar al puerto {port}")
-                client.loop_stop()
-                client.disconnect()
-        except Exception as e:
-            print(f"Error al conectar al puerto {port}: {str(e)}")
-            continue
-    
-    if not connected:
-        print("No se pudo conectar a ningún puerto")
+    # Intentar conectar al puerto 8883 (TLS)
+    try:
+        print("Intentando conectar al puerto 8883 (TLS)...")
+        client.connect(MQTT_BROKER, 8883, 60)
+        client.loop_start()
+        time.sleep(2)
+        
+        if client.is_connected():
+            print("Conectado exitosamente al puerto 8883")
+        else:
+            print("No se pudo conectar al puerto 8883")
+            client.loop_stop()
+            client.disconnect()
+            exit(1)
+    except Exception as e:
+        print(f"Error al conectar al puerto 8883: {str(e)}")
         exit(1)
     
     # Contador de mensajes

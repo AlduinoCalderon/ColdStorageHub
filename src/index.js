@@ -43,10 +43,12 @@ const client = mqtt.connect(mqttUrl, {
   password: MQTT_PASSWORD,
   port: 8883,
   rejectUnauthorized: false,
-  protocol: 'mqtt',
+  protocol: 'mqtts',
   protocolVersion: 4,
   clientId: `warehouse_iot_${Math.random().toString(16).slice(2, 8)}`,
-  reconnectPeriod: 5000
+  reconnectPeriod: 5000,
+  clean: true,
+  keepalive: 60
 });
 
 // Variables para almacenar lecturas
@@ -208,6 +210,7 @@ client.on('connect', () => {
 
 client.on('error', (error) => {
     console.error('❌ Error de cliente MQTT:', error);
+    console.log('Detalles del error:', error.message);
 });
 
 client.on('reconnect', () => {
@@ -216,6 +219,10 @@ client.on('reconnect', () => {
 
 client.on('offline', () => {
     console.log('📴 Cliente MQTT desconectado');
+});
+
+client.on('close', () => {
+    console.log('🔒 Conexión MQTT cerrada');
 });
 
 client.on('message', async (topic, message) => {
