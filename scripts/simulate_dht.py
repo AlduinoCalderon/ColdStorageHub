@@ -25,7 +25,7 @@ print(f"Broker: {MQTT_BROKER}")
 print(f"Usuario: {MQTT_USER}")
 print(f"Contraseña: {'*' * len(MQTT_PASSWORD) if MQTT_PASSWORD else 'No configurada'}")
 
-def on_connect(client, userdata, flags, rc):
+def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         print("Conectado al broker MQTT")
     else:
@@ -37,10 +37,10 @@ def on_connect(client, userdata, flags, rc):
         print("4: Conexión rechazada - usuario o contraseña incorrectos")
         print("5: Conexión rechazada - no autorizado")
 
-def on_publish(client, userdata, mid):
+def on_publish(client, userdata, mid, reason_code=None, properties=None):
     print(f"Mensaje publicado con ID: {mid}")
 
-def on_disconnect(client, userdata, rc):
+def on_disconnect(client, userdata, rc, properties=None):
     print("Desconectado del broker MQTT")
     if rc != 0:
         print(f"Razón de desconexión: {rc}")
@@ -72,7 +72,7 @@ try:
         exit(1)
     
     # Intentar conectar con diferentes puertos
-    ports = [1883, 8883, 443]  # Puertos comunes para MQTT
+    ports = [1883, 8883]  # Puertos comunes para MQTT
     connected = False
     
     for port in ports:
