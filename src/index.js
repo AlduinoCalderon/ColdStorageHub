@@ -87,7 +87,7 @@ async function processReadingsBuffer() {
 
     try {
         // Enviar datos a la API
-        const response = await fetch('https://coldstoragehub.onrender.com/API/storage-unit/1', {
+        const response = await fetch('https://coldstoragehub.onrender.com/API/storage-units/1', {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
