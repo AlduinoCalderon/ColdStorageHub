@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
-#include <M5Stack.h>
+#include <M5Core2.h>
 
 // Configuración del sensor DHT
 #define DHTPIN 22
@@ -40,6 +40,7 @@ float lastDistance2 = 0;
 void updateDisplay() {
   M5.Lcd.clear();
   M5.Lcd.setTextSize(2);
+  M5.Lcd.setTextColor(WHITE);
   
   // Mostrar temperatura
   M5.Lcd.setCursor(10, 20);
@@ -116,7 +117,7 @@ float getDistance(int trig, int echo) {
 }
 
 void setup() {
-  M5.begin();  // Inicializar M5Stack
+  M5.begin(true, true, true, true);  // Inicializar M5Core2 con todas las funciones
   M5.Lcd.clear();
   M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setTextSize(2);
