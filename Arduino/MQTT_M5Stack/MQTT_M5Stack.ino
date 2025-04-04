@@ -4,7 +4,7 @@
 #include <M5Core2.h>
 
 // Configuración del sensor DHT
-#define DHTPIN 22
+#define DHTPIN 32  // Cambiado a pin 32 para M5Stack Core2
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -38,7 +38,7 @@ float lastDistance2 = 0;
 
 // Función para actualizar la pantalla
 void updateDisplay() {
-  M5.Lcd.clear();
+  M5.Lcd.fillScreen(BLACK);  // Limpiar pantalla con fondo negro
   M5.Lcd.setTextSize(2);
   M5.Lcd.setTextColor(WHITE);
   
@@ -117,8 +117,8 @@ float getDistance(int trig, int echo) {
 }
 
 void setup() {
-  M5.begin(true, true, true, true);  // Inicializar M5Core2 con todas las funciones
-  M5.Lcd.clear();
+  M5.begin();  // Inicializar M5Stack Core2
+  M5.Lcd.fillScreen(BLACK);
   M5.Lcd.setTextColor(WHITE);
   M5.Lcd.setTextSize(2);
   M5.Lcd.println("Iniciando...");
