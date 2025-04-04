@@ -18,7 +18,7 @@ const char* ssid = "TEQS_Guest1_5G";
 const char* password = "1234teqs6789teqs";
 
 // Configuración MQTT - Broker y credenciales
-const char* mqtt_server = "192.168.0.4"; // Reemplaza con la IP de tu PC
+const char* mqtt_server = "localhost"; // Cambiado a localhost para conectar con el broker local
 const char* mqtt_user = "alduino";
 const char* mqtt_password = "12345";
 
