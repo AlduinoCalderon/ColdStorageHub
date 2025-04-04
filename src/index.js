@@ -59,9 +59,15 @@ const BUFFER_SIZE = 20;
 async function processReadingsBuffer() {
     if (readingsBuffer.length < BUFFER_SIZE) return;
 
+    console.log('🔄 Procesando buffer de lecturas...');
+    console.log(`📊 Total de lecturas en buffer: ${readingsBuffer.length}`);
+
     // Separar lecturas por tipo
     const tempReadings = readingsBuffer.filter(r => r.sensorType === 'temperature');
     const humReadings = readingsBuffer.filter(r => r.sensorType === 'humidity');
+
+    console.log(`🌡️  Lecturas de temperatura: ${tempReadings.length}`);
+    console.log(`💧 Lecturas de humedad: ${humReadings.length}`);
 
     // Calcular máximos y mínimos
     const minTemp = Math.min(...tempReadings.map(r => r.value));
@@ -77,6 +83,8 @@ async function processReadingsBuffer() {
         maxHumidity: maxHumidity.toString()
     };
 
+    console.log('📤 Enviando datos a la API:', payload);
+
     try {
         // Enviar datos a la API
         const response = await fetch('https://coldstoragehub.onrender.com/API/storage-unit/2', {
@@ -91,12 +99,15 @@ async function processReadingsBuffer() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        console.log('Datos enviados a la API:', payload);
+        const responseData = await response.json();
+        console.log('✅ Datos enviados exitosamente a la API:', responseData);
         
         // Limpiar el buffer después de procesar
         readingsBuffer = [];
+        console.log('🧹 Buffer limpiado');
     } catch (error) {
-        console.error('Error al enviar datos a la API:', error);
+        console.error('❌ Error al enviar datos a la API:', error);
+        // No limpiamos el buffer si hay error para reintentar
     }
 }
 
@@ -264,7 +275,6 @@ client.on('message', async (topic, message) => {
 
         // Procesar buffer si está lleno
         if (readingsBuffer.length >= BUFFER_SIZE) {
-            console.log('🔄 Procesando buffer de lecturas...');
             await processReadingsBuffer();
         }
     } catch (error) {
