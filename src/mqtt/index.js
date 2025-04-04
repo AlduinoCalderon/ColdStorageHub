@@ -3,117 +3,105 @@ const mqtt = require('mqtt');
 const mongoose = require('mongoose');
 const IotReading = require('../api/mongodb/models/iot-reading.model');
 const IotSensor = require('../api/mongodb/models/iot-sensor.model');
+const Reading = require('../api/mongodb/models/Reading');
+const { addToBuffer } = require('../api/mongodb/triggers/processReadings');
 require('dotenv').config();
 
 // Variable para trackear el estado de la conexión
 let isConnected = false;
 
-// Función para crear el cliente MQTT
-function createMqttClient() {
-  // Solo crear si está configurado
-  if (!process.env.MQTT_BROKER_URL) {
-    console.warn('MQTT_BROKER_URL not set, MQTT services disabled');
-    return null;
-  }
+// Configuración MQTT
+const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
+const MQTT_USERNAME = process.env.MQTT_USERNAME;
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
-  const client = mqtt.connect(process.env.MQTT_BROKER_URL, {
-    username: process.env.MQTT_USERNAME,
-    password: process.env.MQTT_PASSWORD,
+// Asegurar que la URL tenga el protocolo
+const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
+
+// Crear cliente MQTT con opciones de reconexión
+const client = mqtt.connect(mqttUrl, {
+    username: MQTT_USERNAME,
+    password: MQTT_PASSWORD,
+    port: 8883,
+    rejectUnauthorized: false,
+    protocol: 'mqtts',
+    protocolVersion: 4,
     clientId: `warehouse_iot_${Math.random().toString(16).slice(2, 8)}`,
-    reconnectPeriod: 5000 // Reconectar cada 5 segundos si se pierde conexión
-  });
+    reconnectPeriod: 5000,
+    clean: true,
+    keepalive: 60
+});
 
-  // Topic structure: warehouse/unit/{unitId}/sensor/{sensorType}
-  const topicPattern = 'warehouse/unit/+/sensor/+';
-
-  client.on('connect', () => {
+// Eventos MQTT
+client.on('connect', () => {
     console.log('🔌 Conectado al broker MQTT');
     isConnected = true;
-    
-    client.subscribe(topicPattern, (err) => {
-      if (err) {
-        console.error('❌ Error de suscripción MQTT:', err);
-      } else {
-        console.log(`✅ Suscrito a ${topicPattern}`);
-      }
+    client.subscribe('warehouse/unit/+/sensor/+', (err) => {
+        if (err) {
+            console.error('❌ Error al suscribirse:', err);
+        } else {
+            console.log('✅ Suscrito a tópicos de sensores');
+        }
     });
-  });
+});
 
-  client.on('message', async (topic, message) => {
-    try {
-      const topicParts = topic.split('/');
-      
-      // Verificar estructura del topic
-      if (topicParts.length !== 5) {
-        console.error('❌ Estructura de topic inválida:', topic);
-        return;
-      }
-      
-      const unitId = parseInt(topicParts[2]);
-      const sensorType = topicParts[4];
-      
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`📥 [${sensorType}] Mensaje recibido para unidad ${unitId}`);
-      }
-      
-      // Parsear payload
-      const payload = JSON.parse(message.toString());
-      const { value, timestamp = new Date() } = payload;
-      
-      // Buscar el sensor por unitId y sensorType
-      let sensor = await IotSensor.findOne({ unitId, sensorType });
-      
-      // Si el sensor no existe, lo creamos
-      if (!sensor) {
-        console.log(`🆕 Creando nuevo sensor para unitId: ${unitId}, tipo: ${sensorType}`);
-        sensor = new IotSensor({
-          sensorId: await generateSensorId(),
-          unitId,
-          sensorType,
-          status: 'active',
-          mqttTopic: topic
-        });
-        await sensor.save();
-      }
-      
-      // Crear nueva lectura
-      const reading = new IotReading({
-        sensorId: sensor._id,
-        value,
-        recordedAt: new Date(timestamp)
-      });
-      
-      await reading.save();
-      
-      // Actualizar última lectura del sensor
-      sensor.lastReading = {
-        value,
-        timestamp: new Date(timestamp)
-      };
-      await sensor.save();
-      
-    } catch (error) {
-      console.error('❌ Error procesando mensaje MQTT:', error);
-    }
-  });
-
-  // Manejo de errores MQTT
-  client.on('error', (error) => {
+client.on('error', (error) => {
     console.error('❌ Error de cliente MQTT:', error);
+    console.log('Detalles del error:', error.message);
     isConnected = false;
-  });
+});
 
-  client.on('reconnect', () => {
+client.on('reconnect', () => {
     console.log('🔄 Reconectando al broker MQTT...');
-  });
+});
 
-  client.on('offline', () => {
+client.on('offline', () => {
     console.log('📴 Cliente MQTT desconectado');
     isConnected = false;
-  });
+});
 
-  return client;
-}
+client.on('close', () => {
+    console.log('🔒 Conexión MQTT cerrada');
+});
+
+client.on('message', async (topic, message) => {
+    console.log('📥 Mensaje recibido en tópico:', topic);
+    console.log('📦 Contenido del mensaje:', message.toString());
+    
+    try {
+        const data = JSON.parse(message);
+        const unitId = topic.split('/')[2];
+        const sensorType = topic.split('/')[4];
+        
+        console.log('🔍 Procesando lectura:', {
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: data.timestamp
+        });
+
+        // Guardar en MongoDB
+        const reading = new Reading({
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: new Date(data.timestamp)
+        });
+
+        await reading.save();
+        console.log('💾 Lectura guardada en MongoDB:', reading);
+
+        // Agregar al buffer
+        await addToBuffer({
+            unitId,
+            sensorType,
+            value: data.value,
+            timestamp: data.timestamp
+        });
+    } catch (error) {
+        console.error('❌ Error procesando mensaje:', error);
+    }
+});
 
 // Generar ID único para nuevos sensores
 async function generateSensorId() {
@@ -122,6 +110,6 @@ async function generateSensorId() {
 }
 
 // Creamos el cliente solo si MongoDB/MQTT está habilitado
-const client = process.env.ENABLE_MONGODB_MQTT === 'true' ? createMqttClient() : null;
+const client = process.env.ENABLE_MONGODB_MQTT === 'true' ? client : null;
 
 module.exports = client;
