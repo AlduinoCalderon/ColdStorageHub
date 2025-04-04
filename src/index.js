@@ -44,7 +44,9 @@ const client = mqtt.connect(mqttUrl, {
   port: 8883,
   rejectUnauthorized: false,
   protocol: 'mqtt',
-  protocolVersion: 4
+  protocolVersion: 4,
+  clientId: `warehouse_iot_${Math.random().toString(16).slice(2, 8)}`,
+  reconnectPeriod: 5000
 });
 
 // Variables para almacenar lecturas
@@ -194,26 +196,38 @@ startServer();
 
 // Eventos MQTT
 client.on('connect', () => {
-    console.log('Conectado al broker MQTT');
+    console.log('🔌 Conectado al broker MQTT');
     client.subscribe('warehouse/unit/+/sensor/+', (err) => {
         if (err) {
-            console.error('Error al suscribirse:', err);
+            console.error('❌ Error al suscribirse:', err);
         } else {
-            console.log('Suscrito a tópicos de sensores');
+            console.log('✅ Suscrito a tópicos de sensores');
         }
     });
 });
 
+client.on('error', (error) => {
+    console.error('❌ Error de cliente MQTT:', error);
+});
+
+client.on('reconnect', () => {
+    console.log('🔄 Reconectando al broker MQTT...');
+});
+
+client.on('offline', () => {
+    console.log('📴 Cliente MQTT desconectado');
+});
+
 client.on('message', async (topic, message) => {
-    console.log('Mensaje recibido en tópico:', topic);
-    console.log('Contenido del mensaje:', message.toString());
+    console.log('📥 Mensaje recibido en tópico:', topic);
+    console.log('📦 Contenido del mensaje:', message.toString());
     
     try {
         const data = JSON.parse(message);
         const unitId = topic.split('/')[2];
         const sensorType = topic.split('/')[4];
         
-        console.log('Procesando lectura:', {
+        console.log('🔍 Procesando lectura:', {
             unitId,
             sensorType,
             value: data.value,
@@ -225,11 +239,11 @@ client.on('message', async (topic, message) => {
             unitId,
             sensorType,
             value: data.value,
-            timestamp: data.timestamp
+            timestamp: new Date(data.timestamp)
         });
 
         await reading.save();
-        console.log('Lectura guardada en MongoDB:', reading);
+        console.log('💾 Lectura guardada en MongoDB:', reading);
 
         // Agregar al buffer
         readingsBuffer.push({
@@ -239,11 +253,14 @@ client.on('message', async (topic, message) => {
             timestamp: data.timestamp
         });
 
+        console.log(`📊 Buffer actual: ${readingsBuffer.length}/${BUFFER_SIZE} lecturas`);
+
         // Procesar buffer si está lleno
         if (readingsBuffer.length >= BUFFER_SIZE) {
+            console.log('🔄 Procesando buffer de lecturas...');
             await processReadingsBuffer();
         }
     } catch (error) {
-        console.error('Error procesando mensaje:', error);
+        console.error('❌ Error procesando mensaje:', error);
     }
 });
