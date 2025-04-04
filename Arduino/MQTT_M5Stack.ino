@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <DHT.h>
+#include <M5Stack.h>
 
 // Configuración del sensor DHT
 #define DHTPIN 22
@@ -28,6 +29,46 @@ const int unitId = 1; // Cambia según corresponda a tu unidad
 // Cliente WiFi y MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+// Variables para almacenar los últimos valores
+float lastTemperature = 0;
+float lastHumidity = 0;
+float lastDistance1 = 0;
+float lastDistance2 = 0;
+
+// Función para actualizar la pantalla
+void updateDisplay() {
+  M5.Lcd.clear();
+  M5.Lcd.setTextSize(2);
+  
+  // Mostrar temperatura
+  M5.Lcd.setCursor(10, 20);
+  M5.Lcd.print("Temp: ");
+  M5.Lcd.print(lastTemperature);
+  M5.Lcd.print(" C");
+  
+  // Mostrar humedad
+  M5.Lcd.setCursor(10, 60);
+  M5.Lcd.print("Humedad: ");
+  M5.Lcd.print(lastHumidity);
+  M5.Lcd.print(" %");
+  
+  // Mostrar distancias
+  M5.Lcd.setCursor(10, 100);
+  M5.Lcd.print("Dist1: ");
+  M5.Lcd.print(lastDistance1);
+  M5.Lcd.print(" cm");
+  
+  M5.Lcd.setCursor(10, 140);
+  M5.Lcd.print("Dist2: ");
+  M5.Lcd.print(lastDistance2);
+  M5.Lcd.print(" cm");
+  
+  // Mostrar estado de conexión
+  M5.Lcd.setCursor(10, 180);
+  M5.Lcd.print("MQTT: ");
+  M5.Lcd.print(client.connected() ? "Conectado" : "Desconectado");
+}
 
 // Conexión WiFi
 void setup_wifi() {
@@ -75,6 +116,12 @@ float getDistance(int trig, int echo) {
 }
 
 void setup() {
+  M5.begin();  // Inicializar M5Stack
+  M5.Lcd.clear();
+  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.println("Iniciando...");
+  
   Serial.begin(115200);
   
   // Inicializar pines para sensores ultrasónicos
@@ -103,45 +150,48 @@ void loop() {
   client.loop();
   
   // Leer sensores
-  float humidity = dht.readHumidity();
-  float temperature = dht.readTemperature();
-  float distance1 = getDistance(TRIG1, ECHO1);
-  float distance2 = getDistance(TRIG2, ECHO2);
+  lastTemperature = dht.readTemperature();
+  lastHumidity = dht.readHumidity();
+  lastDistance1 = getDistance(TRIG1, ECHO1);
+  lastDistance2 = getDistance(TRIG2, ECHO2);
+  
+  // Actualizar pantalla
+  updateDisplay();
   
   // Verificar si las lecturas son válidas
-  if (isnan(humidity) || isnan(temperature)) {
+  if (isnan(lastHumidity) || isnan(lastTemperature)) {
     Serial.println("¡Error al leer del sensor DHT!");
   } else {
     // Crear payload y publicar temperatura
     char tempPayload[100];
-    sprintf(tempPayload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", temperature, getTimestamp());
+    sprintf(tempPayload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", lastTemperature, getTimestamp());
     String tempTopic = "warehouse/unit/" + String(unitId) + "/sensor/temperature";
     client.publish(tempTopic.c_str(), tempPayload);
-    Serial.println("Temperatura publicada: " + String(temperature) + "°C");
+    Serial.println("Temperatura publicada: " + String(lastTemperature) + "°C");
     
     // Crear payload y publicar humedad
     char humPayload[100];
-    sprintf(humPayload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", humidity, getTimestamp());
+    sprintf(humPayload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", lastHumidity, getTimestamp());
     String humTopic = "warehouse/unit/" + String(unitId) + "/sensor/humidity";
     client.publish(humTopic.c_str(), humPayload);
-    Serial.println("Humedad publicada: " + String(humidity) + "%");
+    Serial.println("Humedad publicada: " + String(lastHumidity) + "%");
   }
   
   // Publicar distancias
-  if (distance1 > 0 && distance1 < 400) { // Rango válido
+  if (lastDistance1 > 0 && lastDistance1 < 400) {
     char dist1Payload[100];
-    sprintf(dist1Payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance1, getTimestamp());
+    sprintf(dist1Payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", lastDistance1, getTimestamp());
     String dist1Topic = "warehouse/unit/" + String(unitId) + "/sensor/distance1";
     client.publish(dist1Topic.c_str(), dist1Payload);
-    Serial.println("Distancia 1 publicada: " + String(distance1) + " cm");
+    Serial.println("Distancia 1 publicada: " + String(lastDistance1) + " cm");
   }
   
-  if (distance2 > 0 && distance2 < 400) { // Rango válido
+  if (lastDistance2 > 0 && lastDistance2 < 400) {
     char dist2Payload[100];
-    sprintf(dist2Payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance2, getTimestamp());
+    sprintf(dist2Payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", lastDistance2, getTimestamp());
     String dist2Topic = "warehouse/unit/" + String(unitId) + "/sensor/distance2";
     client.publish(dist2Topic.c_str(), dist2Payload);
-    Serial.println("Distancia 2 publicada: " + String(distance2) + " cm");
+    Serial.println("Distancia 2 publicada: " + String(lastDistance2) + " cm");
   }
   
   // Esperar antes de la siguiente lectura
