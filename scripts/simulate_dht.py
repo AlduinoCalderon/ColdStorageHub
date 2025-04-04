@@ -48,6 +48,11 @@ def on_disconnect(client, userdata, rc):
 # Crear cliente MQTT con la versión más reciente de la API
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+
+# Configurar opciones de conexión
+client.tls_set()  # Habilitar TLS
+client.tls_insecure_set(True)  # Permitir certificados autofirmados
+
 client.on_connect = on_connect
 client.on_publish = on_publish
 client.on_disconnect = on_disconnect
@@ -66,17 +71,31 @@ try:
         print(f"Error: No se puede resolver el host {MQTT_BROKER}")
         exit(1)
     
-    # Intentar conectar
-    client.connect(MQTT_BROKER, 1883, 60)
-    client.loop_start()
+    # Intentar conectar con diferentes puertos
+    ports = [1883, 8883, 443]  # Puertos comunes para MQTT
+    connected = False
     
-    # Esperar a que se establezca la conexión
-    time.sleep(2)
+    for port in ports:
+        try:
+            print(f"Intentando conectar al puerto {port}...")
+            client.connect(MQTT_BROKER, port, 60)
+            client.loop_start()
+            time.sleep(2)
+            
+            if client.is_connected():
+                print(f"Conectado exitosamente al puerto {port}")
+                connected = True
+                break
+            else:
+                print(f"No se pudo conectar al puerto {port}")
+                client.loop_stop()
+                client.disconnect()
+        except Exception as e:
+            print(f"Error al conectar al puerto {port}: {str(e)}")
+            continue
     
-    if not client.is_connected():
-        print("No se pudo conectar al broker MQTT")
-        client.loop_stop()
-        client.disconnect()
+    if not connected:
+        print("No se pudo conectar a ningún puerto")
         exit(1)
     
     # Contador de mensajes
