@@ -19,9 +19,13 @@ const char* ssid = "TEQS_Guest1_5G";  // Tu SSID
 const char* password = "1234teqs6789teqs";  // Tu contraseña WiFi
 
 // Configuración MQTT
-const char* mqtt_server = "localhost";  // Dirección del broker MQTT
+const char* mqtt_server = "localhost";  // IP de tu servidor Node.js
+const int mqtt_port = 1883;
 const char* mqtt_user = "alduino";  // Usuario MQTT
 const char* mqtt_password = "12345";  // Contraseña MQTT
+
+// ID de la unidad
+const int unitId = 1;
 
 // Cliente WiFi y MQTT
 WiFiClient espClient;
@@ -50,10 +54,29 @@ void setup() {
   Serial.println("¡WiFi conectado!");
   
   // Configurar servidor MQTT
-  client.setServer(mqtt_server, 1883);
+  client.setServer(mqtt_server, mqtt_port);
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("Conectando a MQTT...");
+    if (client.connect("ESP32Client", mqtt_user, mqtt_password)) {
+      Serial.println("conectado");
+    } else {
+      Serial.print("falló, rc=");
+      Serial.print(client.state());
+      Serial.println(" reintentando en 5 segundos");
+      delay(5000);
+    }
+  }
 }
 
 void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+  
   // Leer sensores
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
@@ -67,33 +90,35 @@ void loop() {
   tft.setCursor(10, 40);
   tft.printf("Humedad: %.2f %%\n", humidity);
   
+  // Crear payload JSON
+  char payload[200];
+  sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", 
+          temperature, 
+          getTimestamp());
+  
   // Publicar en MQTT
-  if (!client.connected()) {
-    // Reconectar si no está conectado
-    while (!client.connected()) {
-      Serial.print("Conectando a MQTT...");
-      if (client.connect("LiligoClient", mqtt_user, mqtt_password)) {
-        Serial.println("conectado");
-      } else {
-        Serial.print("falló, rc=");
-        Serial.print(client.state());
-        Serial.println(" reintentando en 5 segundos");
-        delay(5000);
-      }
-    }
-  }
-  client.loop();
+  String topic = "warehouse/unit/" + String(unitId) + "/sensor/temperature";
+  client.publish(topic.c_str(), payload);
   
-  // Crear payload y publicar temperatura
-  char tempPayload[100];
-  sprintf(tempPayload, "{\"value\": %.2f}", temperature);
-  client.publish("warehouse/unit/1/sensor/temperature", tempPayload);
+  sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", 
+          humidity, 
+          getTimestamp());
+  topic = "warehouse/unit/" + String(unitId) + "/sensor/humidity";
+  client.publish(topic.c_str(), payload);
   
-  // Crear payload y publicar humedad
-  char humPayload[100];
-  sprintf(humPayload, "{\"value\": %.2f}", humidity);
-  client.publish("warehouse/unit/1/sensor/humidity", humPayload);
-  
-  // Esperar antes de la siguiente lectura
   delay(5000);
+}
+
+// Función para obtener timestamp
+char* getTimestamp() {
+  static char timestamp[25];
+  unsigned long ms = millis();
+  unsigned long seconds = ms / 1000;
+  unsigned long minutes = seconds / 60;
+  unsigned long hours = minutes / 60;
+  
+  sprintf(timestamp, "%02lu:%02lu:%02lu.%03lu",
+         hours % 24, minutes % 60, seconds % 60, ms % 1000);
+  
+  return timestamp;
 }

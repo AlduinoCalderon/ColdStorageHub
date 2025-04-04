@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const mqtt = require('mqtt');
+const mongoose = require('mongoose');
 require('dotenv').config();
 
 // MySQL config
@@ -13,9 +15,62 @@ const bookingRoutes = require('./api/mysql/routes/booking.routes');
 const userRoutes = require('./api/mysql/routes/user.routes');
 const paymentRoutes = require('./api/mysql/routes/payment.routes');
 
-// MongoDB & MQTT config (temporalmente deshabilitado)
-// const { connectMongoDB } = require('./config/mongodb');
-// const { setupReadingListener } = require('./api/mongodb/triggers/batch-processor');
+// Configuración de MongoDB
+const MONGODB_URI = process.env.MONGODB_URI;
+
+// Configuración MQTT
+const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL || 'mqtt://localhost';
+const MQTT_USERNAME = process.env.MQTT_USERNAME || 'alduino';
+const MQTT_PASSWORD = process.env.MQTT_PASSWORD || '12345';
+
+// Modelo de MongoDB para las lecturas
+const ReadingSchema = new mongoose.Schema({
+  unitId: Number,
+  sensorType: String,
+  value: Number,
+  timestamp: Date
+});
+
+const Reading = mongoose.model('Reading', ReadingSchema);
+
+// Crear cliente MQTT
+const mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+  username: MQTT_USERNAME,
+  password: MQTT_PASSWORD
+});
+
+// Conexión a MongoDB
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Conectado a MongoDB'))
+  .catch(err => console.error('Error conectando a MongoDB:', err));
+
+// Configuración MQTT
+mqttClient.on('connect', () => {
+  console.log('Conectado al broker MQTT');
+  mqttClient.subscribe('warehouse/unit/+/sensor/+');
+});
+
+mqttClient.on('message', async (topic, message) => {
+  try {
+    const payload = JSON.parse(message.toString());
+    const topicParts = topic.split('/');
+    const unitId = parseInt(topicParts[2]);
+    const sensorType = topicParts[4];
+
+    // Crear nueva lectura en MongoDB
+    const reading = new Reading({
+      unitId,
+      sensorType,
+      value: payload.value,
+      timestamp: new Date(payload.timestamp)
+    });
+
+    await reading.save();
+    console.log(`Lectura guardada: ${sensorType} = ${payload.value}`);
+  } catch (error) {
+    console.error('Error procesando mensaje MQTT:', error);
+  }
+});
 
 const app = express();
 
@@ -45,17 +100,23 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+// Ruta para obtener lecturas
+app.get('/api/readings', async (req, res) => {
+  try {
+    const readings = await Reading.find().sort({ timestamp: -1 }).limit(100);
+    res.json(readings);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener lecturas' });
+  }
+});
+
 // Ruta de estado
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        timestamp: new Date(),
-        services: {
-            mysql: true,
-            mongodb: global.mongodbConnected || false,
-            mqtt: global.mqttConnected || false
-        }
-    });
+  res.json({
+    status: 'OK',
+    mqtt: mqttClient.connected,
+    mongodb: mongoose.connection.readyState === 1
+  });
 });
 
 // Rutas API MySQL
@@ -81,25 +142,11 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Comentamos temporalmente la función startMongodbMqtt
-// async function startMongodbMqtt() {
-//     try {
-//         await connectMongoDB();
-//         await setupReadingListener();
-//         console.log('MongoDB y MQTT configurados correctamente');
-//     } catch (error) {
-//         console.error('Error al configurar MongoDB y MQTT:', error);
-//     }
-// }
-
 const startServer = async () => {
     try {
         // Probar conexión MySQL
         await testMySQLConnection();
         console.log('Conexión a MySQL establecida correctamente');
-
-        // Iniciar MongoDB y MQTT (temporalmente deshabilitado)
-        // await startMongodbMqtt();
 
         // Configurar rutas
         app.use('/api/warehouses', warehouseRoutes);
