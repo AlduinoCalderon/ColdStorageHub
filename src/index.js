@@ -96,100 +96,112 @@ async function processReadingsBuffer() {
     }
 }
 
-// Conexión a MongoDB
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('Conectado a MongoDB');
-    // Iniciar el servidor Express
-    const app = express();
+// Función para iniciar el servidor
+const startServer = async () => {
+    try {
+        // Probar conexión MySQL
+        await testMySQLConnection();
+        console.log('Conexión a MySQL establecida correctamente');
 
-    // Middleware de seguridad
-    app.use(helmet());
-    app.use(cors({
-        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
-        credentials: true
-    }));
+        // Conectar a MongoDB
+        await mongoose.connect(MONGODB_URI);
+        console.log('Conectado a MongoDB');
 
-    // Configuración de body parsing con límite
-    app.use(express.json({ limit: '1mb' }));
-    app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+        // Iniciar el servidor Express
+        const app = express();
 
-    // Middleware de logging solo en desarrollo
-    app.use((req, res, next) => {
-        if (process.env.NODE_ENV === 'development' && req.method === 'POST') {
-            console.log('Body recibido:', req.body);
-        }
-        next();
-    });
+        // Middleware de seguridad
+        app.use(helmet());
+        app.use(cors({
+            origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
+            credentials: true
+        }));
 
-    // Rate limiting con validación de variables de entorno
-    const limiter = rateLimit({
-        windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-        max: Number(process.env.RATE_LIMIT_MAX) || 100
-    });
-    app.use(limiter);
+        // Configuración de body parsing con límite
+        app.use(express.json({ limit: '1mb' }));
+        app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-    // Ruta para obtener lecturas
-    app.get('/api/readings', async (req, res) => {
-      try {
-        const readings = await Reading.find().sort({ timestamp: -1 }).limit(100);
-        res.json(readings);
-      } catch (error) {
-        res.status(500).json({ error: 'Error al obtener lecturas' });
-      }
-    });
-
-    // Ruta de estado
-    app.get('/api/health', (req, res) => {
-      res.json({
-        status: 'OK',
-        mqtt: client.connected,
-        mongodb: mongoose.connection.readyState === 1
-      });
-    });
-
-    // Rutas API MySQL
-    app.use('/api/warehouses', warehouseRoutes);
-    app.use('/api/storage-units', storageUnitRoutes);
-    app.use('/api/bookings', bookingRoutes);
-    app.use('/api/users', userRoutes);
-    app.use('/api/payments', paymentRoutes);
-
-    // Manejo de errores 404
-    app.use((req, res, next) => {
-        const error = new Error('Ruta no encontrada');
-        error.status = 404;
-        next(error);
-    });
-
-    // Manejo de errores generales
-    app.use((err, req, res, next) => {
-        console.error(`[ERROR] ${err.message}`);
-        res.status(err.status || 500).json({
-            message: err.status === 404 ? err.message : 'Error interno del servidor',
-            ...(process.env.NODE_ENV === 'development' && { error: err.stack })
+        // Middleware de logging solo en desarrollo
+        app.use((req, res, next) => {
+            if (process.env.NODE_ENV === 'development' && req.method === 'POST') {
+                console.log('Body recibido:', req.body);
+            }
+            next();
         });
-    });
 
-    const PORT = process.env.PORT || 3001;
-    app.listen(PORT, () => {
-      console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('Error conectando a MongoDB:', err);
-    console.log('Por favor, asegúrate de que tu IP está whitelisted en MongoDB Atlas');
-  });
+        // Rate limiting con validación de variables de entorno
+        const limiter = rateLimit({
+            windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
+            max: Number(process.env.RATE_LIMIT_MAX) || 100
+        });
+        app.use(limiter);
 
-client.on('connect', () => {
-  console.log('Conectado al broker MQTT');
-  client.subscribe('warehouse/unit/+/sensor/+', (err) => {
-    if (err) {
-      console.error('Error al suscribirse:', err);
-    } else {
-      console.log('Suscrito a tópicos de sensores');
+        // Ruta para obtener lecturas
+        app.get('/api/readings', async (req, res) => {
+            try {
+                const readings = await Reading.find().sort({ timestamp: -1 }).limit(100);
+                res.json(readings);
+            } catch (error) {
+                res.status(500).json({ error: 'Error al obtener lecturas' });
+            }
+        });
+
+        // Ruta de estado
+        app.get('/api/health', (req, res) => {
+            res.json({
+                status: 'OK',
+                mqtt: client.connected,
+                mongodb: mongoose.connection.readyState === 1,
+                mysql: sequelize.authenticate()
+            });
+        });
+
+        // Rutas API MySQL
+        app.use('/api/warehouses', warehouseRoutes);
+        app.use('/api/storage-units', storageUnitRoutes);
+        app.use('/api/bookings', bookingRoutes);
+        app.use('/api/users', userRoutes);
+        app.use('/api/payments', paymentRoutes);
+
+        // Manejo de errores 404
+        app.use((req, res, next) => {
+            const error = new Error('Ruta no encontrada');
+            error.status = 404;
+            next(error);
+        });
+
+        // Manejo de errores generales
+        app.use((err, req, res, next) => {
+            console.error(`[ERROR] ${err.message}`);
+            res.status(err.status || 500).json({
+                message: err.status === 404 ? err.message : 'Error interno del servidor',
+                ...(process.env.NODE_ENV === 'development' && { error: err.stack })
+            });
+        });
+
+        const PORT = process.env.PORT || 3001;
+        app.listen(PORT, () => {
+            console.log(`Servidor corriendo en http://localhost:${PORT}`);
+        });
+    } catch (error) {
+        console.error('Error al iniciar el servidor:', error);
+        process.exit(1);
     }
-  });
+};
+
+// Iniciar el servidor
+startServer();
+
+// Eventos MQTT
+client.on('connect', () => {
+    console.log('Conectado al broker MQTT');
+    client.subscribe('warehouse/unit/+/sensor/+', (err) => {
+        if (err) {
+            console.error('Error al suscribirse:', err);
+        } else {
+            console.log('Suscrito a tópicos de sensores');
+        }
+    });
 });
 
 client.on('message', async (topic, message) => {
