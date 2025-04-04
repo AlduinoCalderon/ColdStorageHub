@@ -15,6 +15,10 @@ MQTT_USER = os.getenv('MQTT_USERNAME')
 MQTT_PASSWORD = os.getenv('MQTT_PASSWORD')
 UNIT_ID = 1
 
+# Asegurar que la URL tenga el formato correcto
+if MQTT_BROKER.startswith('mqtt://'):
+    MQTT_BROKER = MQTT_BROKER.replace('mqtt://', '')
+
 def on_connect(client, userdata, flags, rc):
     print("Conectado al broker MQTT")
     print(f"Código de resultado: {rc}")
