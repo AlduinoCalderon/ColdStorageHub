@@ -23,6 +23,10 @@ const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
 const MQTT_USERNAME = process.env.MQTT_USERNAME;
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
+// Asegurar que la URL tenga el protocolo
+const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
+console.log('Conectando a MQTT:', mqttUrl);
+
 // Modelo de MongoDB para las lecturas
 const ReadingSchema = new mongoose.Schema({
   unitId: Number,
@@ -34,7 +38,7 @@ const ReadingSchema = new mongoose.Schema({
 const Reading = mongoose.model('Reading', ReadingSchema);
 
 // Crear cliente MQTT con opciones de reconexión
-const mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+const client = mqtt.connect(mqttUrl, {
   username: MQTT_USERNAME,
   password: MQTT_PASSWORD,
   port: 8883,
@@ -88,7 +92,7 @@ mongoose.connect(MONGODB_URI)
     app.get('/api/health', (req, res) => {
       res.json({
         status: 'OK',
-        mqtt: mqttClient.connected,
+        mqtt: client.connected,
         mongodb: mongoose.connection.readyState === 1
       });
     });
@@ -125,17 +129,6 @@ mongoose.connect(MONGODB_URI)
     console.error('Error conectando a MongoDB:', err);
     console.log('Por favor, asegúrate de que tu IP está whitelisted en MongoDB Atlas');
   });
-
-// Conectar al broker MQTT
-const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
-console.log('Conectando a MQTT:', mqttUrl);
-
-const client = mqtt.connect(mqttUrl, {
-  username: MQTT_USERNAME,
-  password: MQTT_PASSWORD,
-  port: 8883,
-  rejectUnauthorized: false
-});
 
 client.on('connect', () => {
   console.log('Conectado al broker MQTT');
