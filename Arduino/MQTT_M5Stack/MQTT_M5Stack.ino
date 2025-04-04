@@ -2,6 +2,7 @@
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <TFT_eSPI.h>  // Biblioteca para la pantalla TFT
+#include <ESPping.h> 
 
 // Configuración del sensor DHT
 #define DHTPIN 22  // Pin para el sensor DHT
@@ -20,6 +21,7 @@ const char* password = "1234teqs6789teqs";  // Tu contraseña WiFi
 
 // Configuración MQTT
 const char* mqtt_server = "192.168.0.4";  // Dirección del broker MQTT
+//const char* mqtt_server = "broker.hivemq.com";  // Dirección del broker MQTT público
 const char* mqtt_user = "alduino";  // Usuario MQTT
 const char* mqtt_password = "12345";  // Contraseña MQTT
 
@@ -56,6 +58,9 @@ void loop() {
   // Verificar conexión MQTT
   if (!client.connected()) {
     conectarMQTT();
+    Serial.println("\n¡WiFi conectado!");
+    Serial.print("Dirección IP: ");
+    Serial.println(WiFi.localIP());
   }
   client.loop();
 
@@ -91,11 +96,25 @@ void conectarMQTT() {
     if (client.connect("LiligoClient", mqtt_user, mqtt_password)) {
       Serial.println("conectado");
     } else {
-      Serial.print("falló, rc=");
-      Serial.print(client.state());
-      Serial.println(" reintentando en 5 segundos");
-      delay(5000);
+    Serial.print("falló, rc=");
+    Serial.print(client.state());
+    Serial.println(" reintentando en 0.5 segundos");
+    Serial.println("\n¡WiFi conectado!");
+    Serial.print("Dirección IP: ");
+    Serial.println(WiFi.localIP());
+
+    // Realizar el ping utilizando ESPping
+    Serial.print("Haciendo ping a 192.168.0.4 ... ");
+    IPAddress ip (192, 168, 0, 4); // The remote ip to ping
+    // Realizar el ping utilizando ESPping
+    if (Ping.ping(ip)) {  // Llamada directa a la función ping() de la librería ESPping
+      Serial.println("¡Ping exitoso!");
+    } else {
+      Serial.println("Ping falló");
     }
+    delay(500);
+   }
+
   }
 }
 
