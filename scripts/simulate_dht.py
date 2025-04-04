@@ -5,6 +5,7 @@ import random
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+import socket
 
 # Cargar variables de entorno
 load_dotenv()
@@ -19,17 +20,30 @@ UNIT_ID = 1
 if MQTT_BROKER.startswith('mqtt://'):
     MQTT_BROKER = MQTT_BROKER.replace('mqtt://', '')
 
+print(f"Configuración MQTT:")
+print(f"Broker: {MQTT_BROKER}")
+print(f"Usuario: {MQTT_USER}")
+print(f"Contraseña: {'*' * len(MQTT_PASSWORD) if MQTT_PASSWORD else 'No configurada'}")
+
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Conectado al broker MQTT")
     else:
         print(f"Error de conexión: {rc}")
+        print("Códigos de error comunes:")
+        print("1: Conexión rechazada - versión de protocolo incorrecta")
+        print("2: Conexión rechazada - identificador de cliente inválido")
+        print("3: Conexión rechazada - servidor no disponible")
+        print("4: Conexión rechazada - usuario o contraseña incorrectos")
+        print("5: Conexión rechazada - no autorizado")
 
 def on_publish(client, userdata, mid):
     print(f"Mensaje publicado con ID: {mid}")
 
 def on_disconnect(client, userdata, rc):
     print("Desconectado del broker MQTT")
+    if rc != 0:
+        print(f"Razón de desconexión: {rc}")
 
 # Crear cliente MQTT con la versión más reciente de la API
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -43,6 +57,16 @@ client.connect_timeout = 30
 
 try:
     print(f"Intentando conectar a {MQTT_BROKER}...")
+    
+    # Verificar si el host es accesible
+    try:
+        socket.gethostbyname(MQTT_BROKER)
+        print(f"Host {MQTT_BROKER} es accesible")
+    except socket.gaierror:
+        print(f"Error: No se puede resolver el host {MQTT_BROKER}")
+        exit(1)
+    
+    # Intentar conectar
     client.connect(MQTT_BROKER, 1883, 60)
     client.loop_start()
     
@@ -83,7 +107,9 @@ try:
         hum_topic = f"warehouse/unit/{UNIT_ID}/sensor/humidity"
         
         try:
+            print(f"Publicando en tópico: {temp_topic}")
             client.publish(temp_topic, json.dumps(temp_payload))
+            print(f"Publicando en tópico: {hum_topic}")
             client.publish(hum_topic, json.dumps(hum_payload))
             
             print(f"Mensaje {message_count + 1}/{max_messages}")
@@ -97,6 +123,9 @@ try:
 
 except Exception as e:
     print(f"Error general: {e}")
+    print("Detalles del error:")
+    print(f"Tipo de error: {type(e).__name__}")
+    print(f"Mensaje de error: {str(e)}")
 finally:
     client.loop_stop()
     client.disconnect()
