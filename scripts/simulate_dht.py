@@ -100,7 +100,7 @@ try:
     
     # Contador de mensajes
     message_count = 0
-    max_messages = 5
+    max_messages = 20  # 10 pares de temperatura y humedad
     
     while message_count < max_messages and client.is_connected():
         # Generar valores aleatorios para temperatura y humedad
@@ -135,7 +135,7 @@ try:
             print(f"Publicado - Temp: {temperature}°C, Hum: {humidity}%")
             
             message_count += 1
-            time.sleep(2)
+            time.sleep(1)  # Reducir el tiempo de espera entre mensajes
         except Exception as e:
             print(f"Error al publicar mensaje: {e}")
             break
