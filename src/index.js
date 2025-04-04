@@ -23,6 +23,9 @@ const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
 const MQTT_USERNAME = process.env.MQTT_USERNAME;
 const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
+// Asegurar que la URL tenga el protocolo
+const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
+
 // Modelo de MongoDB para las lecturas
 const ReadingSchema = new mongoose.Schema({
   unitId: Number,
@@ -34,7 +37,7 @@ const ReadingSchema = new mongoose.Schema({
 const Reading = mongoose.model('Reading', ReadingSchema);
 
 // Crear cliente MQTT
-const mqttClient = mqtt.connect(MQTT_BROKER_URL, {
+const mqttClient = mqtt.connect(mqttUrl, {
   username: MQTT_USERNAME,
   password: MQTT_PASSWORD
 });
