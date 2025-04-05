@@ -19,11 +19,10 @@ DHT dht(DHTPIN, DHTTYPE);
 const char* ssid = "TEQS_Guest1";  // Tu SSID
 const char* password = "1234teqs6789teqs";  // Tu contraseña WiFi
 
-// Configuración MQTT
-const char* mqtt_server = "192.168.0.4";  // Dirección del broker MQTT
-//const char* mqtt_server = "broker.hivemq.com";  // Dirección del broker MQTT público
-const char* mqtt_user = "alduino";  // Usuario MQTT
-const char* mqtt_password = "12345";  // Contraseña MQTT
+const char* mqtt_server = "chameleon.lmq.cloudamqp.com";
+const int mqtt_port = 8883;
+const char* mqtt_user = "ylltduke:ylltduke";
+const char* mqtt_password = "0l2ahZ_tmYsp7Dt57IOJU8NcbccV5tw9"; 
 
 // ID de la unidad
 const int unitId = 1;
