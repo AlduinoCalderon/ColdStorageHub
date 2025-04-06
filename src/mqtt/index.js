@@ -1,5 +1,6 @@
 // src/mqtt/index.js
 const mqtt = require('mqtt');
+const { connectMongoDB } = require('../config/mongodb');
 const { Reading } = require('../api/mongodb/models/reading.model');
 require('dotenv').config();
 
@@ -17,6 +18,7 @@ class MQTTClient {
     }
 
     async connect() {
+        await connectMongoDB();
         const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
         const MQTT_USERNAME = process.env.MQTT_USERNAME;
         const MQTT_PASSWORD = process.env.MQTT_PASSWORD;

@@ -1,7 +1,7 @@
 {
   "name": "coldstorage",
   "version": "1.0.0",
-  "description": "API para gestión de almacenes fríos con arquitectura híbrida MySQL + MongoDB",
+  "description": "API para gestión de almacenes fríos con arquitectura híbrida MySQL + MongoDB y conexión por MQTT",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
