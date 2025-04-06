@@ -23,7 +23,7 @@ const startServer = async () => {
         console.log('✅ Conexión a MySQL establecida correctamente');
 
         // Conectar a MongoDB
-        await connectMongoDB();
+        const mongooseConnection = await connectMongoDB();
 
         // Iniciar el servidor Express
         const app = express();
@@ -61,7 +61,7 @@ const startServer = async () => {
             res.json({
                 status: 'OK',
                 mqtt: mqttClient.client ? mqttClient.client.connected : false,
-                mongodb: mongoose.connection.readyState === 1,
+                mongodb: mongooseConnection.readyState === 1,
                 mysql: true // Asumiendo que la conexión MySQL está activa
             });
         });
