@@ -147,19 +147,24 @@ class MQTTClient {
             const response = await fetch('https://coldstoragehub.onrender.com/API/storage-unit/1', {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'User-Agent': 'ColdStorageHub-MQTT-Client'
                 },
                 body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                if (response.status === 429 && this.retryCount < this.MAX_RETRIES) {
-                    console.log(`⏳ Demasiadas peticiones. Reintentando en ${this.RETRY_DELAY/1000} segundos...`);
+                const errorText = await response.text();
+                console.error(`❌ Error de API (${response.status}):`, errorText);
+                
+                if ((response.status === 429 || response.status === 502) && this.retryCount < this.MAX_RETRIES) {
+                    console.log(`⏳ Error ${response.status}. Reintentando en ${this.RETRY_DELAY/1000} segundos...`);
                     this.retryCount++;
                     await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
                     return this.processReadingsBuffer();
                 }
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
             }
 
             const responseData = await response.json();
