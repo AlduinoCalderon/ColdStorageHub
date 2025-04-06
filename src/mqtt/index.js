@@ -11,6 +11,9 @@ class MQTTClient {
         this.client = null;
         this.readingsBuffer = [];
         this.BUFFER_SIZE = 20;
+        this.retryCount = 0;
+        this.MAX_RETRIES = 3;
+        this.RETRY_DELAY = 5000; // 5 segundos
     }
 
     async connect() {
@@ -88,7 +91,7 @@ class MQTTClient {
             const reading = new Reading({
                 unitId,
                 sensorType,
-                value: data.value,
+                value: parseFloat(data.value), // Asegurar que es número
                 timestamp: new Date(data.timestamp)
             });
 
@@ -99,7 +102,7 @@ class MQTTClient {
             this.readingsBuffer.push({
                 unitId,
                 sensorType,
-                value: data.value,
+                value: parseFloat(data.value), // Asegurar que es número
                 timestamp: data.timestamp
             });
 
@@ -150,6 +153,12 @@ class MQTTClient {
             });
 
             if (!response.ok) {
+                if (response.status === 429 && this.retryCount < this.MAX_RETRIES) {
+                    console.log(`⏳ Demasiadas peticiones. Reintentando en ${this.RETRY_DELAY/1000} segundos...`);
+                    this.retryCount++;
+                    await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+                    return this.processReadingsBuffer();
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
@@ -157,9 +166,19 @@ class MQTTClient {
             console.log('✅ Datos enviados exitosamente a la API:', responseData);
             
             this.readingsBuffer = [];
+            this.retryCount = 0;
             console.log('🧹 Buffer limpiado');
         } catch (error) {
             console.error('❌ Error al enviar datos a la API:', error);
+            if (this.retryCount < this.MAX_RETRIES) {
+                console.log(`🔄 Reintentando en ${this.RETRY_DELAY/1000} segundos...`);
+                this.retryCount++;
+                await new Promise(resolve => setTimeout(resolve, this.RETRY_DELAY));
+                return this.processReadingsBuffer();
+            }
+            console.log('❌ Máximo número de reintentos alcanzado. Limpiando buffer...');
+            this.readingsBuffer = [];
+            this.retryCount = 0;
         }
     }
 }
