@@ -1,7 +1,13 @@
 // src/mqtt/index.js
 const mqtt = require('mqtt');
-const { processMessage } = require('../api/mongodb/triggers/processReadings');
+const mongoose = require('mongoose');
+const IotReading = require('../api/mongodb/models/iot-reading.model');
+const IotSensor = require('../api/mongodb/models/iot-sensor.model');
+const { Reading } = require('../models/reading');
 require('dotenv').config();
+
+// Variable para trackear el estado de la conexión
+let isConnected = false;
 
 class MQTTClient {
     constructor() {
@@ -10,12 +16,11 @@ class MQTTClient {
         this.BUFFER_SIZE = 20;
     }
 
-    connect() {
+    async connect() {
         const MQTT_BROKER_URL = process.env.MQTT_BROKER_URL;
         const MQTT_USERNAME = process.env.MQTT_USERNAME;
         const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
-        // Asegurar que la URL tenga el protocolo
         const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
         console.log('Conectando a MQTT:', mqttUrl);
 
@@ -49,7 +54,6 @@ class MQTTClient {
 
         this.client.on('error', (error) => {
             console.error('❌ Error de cliente MQTT:', error);
-            console.log('Detalles del error:', error.message);
         });
 
         this.client.on('reconnect', () => {
@@ -64,10 +68,109 @@ class MQTTClient {
             console.log('🔒 Conexión MQTT cerrada');
         });
 
-        this.client.on('message', async (topic, message) => {
-            await processMessage(topic, message, this.readingsBuffer, this.BUFFER_SIZE);
-        });
+        this.client.on('message', this.handleMessage.bind(this));
     }
+
+    async handleMessage(topic, message) {
+        console.log('📥 Mensaje recibido en tópico:', topic);
+        console.log('📦 Contenido del mensaje:', message.toString());
+        
+        try {
+            const data = JSON.parse(message);
+            const unitId = topic.split('/')[2];
+            const sensorType = topic.split('/')[4];
+            
+            console.log('🔍 Procesando lectura:', {
+                unitId,
+                sensorType,
+                value: data.value,
+                timestamp: data.timestamp
+            });
+
+            // Guardar en MongoDB
+            const reading = new Reading({
+                unitId,
+                sensorType,
+                value: data.value,
+                timestamp: new Date(data.timestamp)
+            });
+
+            await reading.save();
+            console.log('💾 Lectura guardada en MongoDB:', reading);
+
+            // Agregar al buffer
+            this.readingsBuffer.push({
+                unitId,
+                sensorType,
+                value: data.value,
+                timestamp: data.timestamp
+            });
+
+            console.log(`📊 Buffer actual: ${this.readingsBuffer.length}/${this.BUFFER_SIZE} lecturas`);
+
+            // Procesar buffer si está lleno
+            if (this.readingsBuffer.length >= this.BUFFER_SIZE) {
+                await this.processReadingsBuffer();
+            }
+        } catch (error) {
+            console.error('❌ Error procesando mensaje:', error);
+        }
+    }
+
+    async processReadingsBuffer() {
+        if (this.readingsBuffer.length < this.BUFFER_SIZE) return;
+
+        console.log('🔄 Procesando buffer de lecturas...');
+        console.log(`📊 Total de lecturas en buffer: ${this.readingsBuffer.length}`);
+
+        const tempReadings = this.readingsBuffer.filter(r => r.sensorType === 'temperature');
+        const humReadings = this.readingsBuffer.filter(r => r.sensorType === 'humidity');
+
+        console.log(`🌡️  Lecturas de temperatura: ${tempReadings.length}`);
+        console.log(`💧 Lecturas de humedad: ${humReadings.length}`);
+
+        const minTemp = Math.min(...tempReadings.map(r => r.value));
+        const maxTemp = Math.max(...tempReadings.map(r => r.value));
+        const minHumidity = Math.min(...humReadings.map(r => r.value));
+        const maxHumidity = Math.max(...humReadings.map(r => r.value));
+
+        const payload = {
+            minTemp: minTemp.toString(),
+            maxTemp: maxTemp.toString(),
+            minHumidity: minHumidity.toString(),
+            maxHumidity: maxHumidity.toString()
+        };
+
+        console.log('📤 Enviando datos a la API:', payload);
+
+        try {
+            const response = await fetch('https://coldstoragehub.onrender.com/API/storage-unit/1', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+            console.log('✅ Datos enviados exitosamente a la API:', responseData);
+            
+            this.readingsBuffer = [];
+            console.log('🧹 Buffer limpiado');
+        } catch (error) {
+            console.error('❌ Error al enviar datos a la API:', error);
+        }
+    }
+}
+
+// Generar ID único para nuevos sensores
+async function generateSensorId() {
+  const lastSensor = await IotSensor.findOne().sort({ sensorId: -1 });
+  return lastSensor ? lastSensor.sensorId + 1 : 1;
 }
 
 // Creamos el cliente solo si MongoDB/MQTT está habilitado

@@ -5,18 +5,19 @@ require('dotenv').config();
 // Configuración de conexión a MongoDB Atlas
 const connectMongoDB = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error('MONGODB_URI environment variable is not set');
-    }
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://coldstoragehub:1234@coldstoragehub.0j8jq.mongodb.net/ColdStorages?retryWrites=true&w=majority';
     
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
-    console.log('MongoDB Atlas connected successfully');
+    
+    console.log('✅ Conectado a MongoDB - Base de datos: ColdStorages');
+    return mongoose.connection;
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    throw error; // Propagar el error para manejo superior
+    console.error('❌ Error conectando a MongoDB:', error);
+    console.log('⚠️  Asegúrate de que tu IP está whitelisted en MongoDB Atlas');
+    throw error;
   }
 };
 
