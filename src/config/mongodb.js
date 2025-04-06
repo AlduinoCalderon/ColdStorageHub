@@ -7,10 +7,7 @@ const connectMongoDB = async () => {
   try {
     const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://coldstoragehub:1234@coldstoragehub.0j8jq.mongodb.net/ColdStorages?retryWrites=true&w=majority';
     
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
+    await mongoose.connect(MONGODB_URI);
     
     console.log('✅ Conectado a MongoDB - Base de datos: ColdStorages');
     return mongoose.connection;
