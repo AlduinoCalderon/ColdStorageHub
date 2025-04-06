@@ -3,7 +3,7 @@ const mqtt = require('mqtt');
 const mongoose = require('mongoose');
 const IotReading = require('../api/mongodb/models/iot-reading.model');
 const IotSensor = require('../api/mongodb/models/iot-sensor.model');
-const { Reading } = require('../models/reading');
+const { Reading } = require('../api/mongodb/models/reading.model');
 require('dotenv').config();
 
 // Variable para trackear el estado de la conexión
