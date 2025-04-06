@@ -5,7 +5,7 @@ const readingSchema = new mongoose.Schema({
     sensorType: String,
     value: Number,
     timestamp: Date
-}, { collection: 'Readings' });
+}, { collection: 'Readings', versionKey: false  });
 
 const Reading = mongoose.model('Reading', readingSchema);
 
