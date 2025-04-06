@@ -1,8 +1,5 @@
 // src/mqtt/index.js
 const mqtt = require('mqtt');
-const mongoose = require('mongoose');
-const IotReading = require('../api/mongodb/models/iot-reading.model');
-const IotSensor = require('../api/mongodb/models/iot-sensor.model');
 const { Reading } = require('../api/mongodb/models/reading.model');
 require('dotenv').config();
 
@@ -165,12 +162,6 @@ class MQTTClient {
             console.error('❌ Error al enviar datos a la API:', error);
         }
     }
-}
-
-// Generar ID único para nuevos sensores
-async function generateSensorId() {
-  const lastSensor = await IotSensor.findOne().sort({ sensorId: -1 });
-  return lastSensor ? lastSensor.sensorId + 1 : 1;
 }
 
 // Creamos el cliente solo si MongoDB/MQTT está habilitado
