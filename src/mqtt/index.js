@@ -89,6 +89,11 @@ class MQTTClient {
                 timestamp: data.timestamp
             });
 
+            // Verificar si el sensor es de proximidad y el valor es menor a 15
+            if ((sensorType === 'proximity1' || sensorType === 'proximity2') && parseFloat(data.value) < 15) {
+                console.log(`🚨 Espacio ocupado detectado en ${sensorType}. Proximidad: ${data.value}`);
+            }
+
             // Guardar en MongoDB
             const reading = new Reading({
                 unitId,
