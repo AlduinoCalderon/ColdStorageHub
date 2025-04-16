@@ -14,6 +14,7 @@ const storageUnitRoutes = require('./api/mysql/routes/storage-unit.routes');
 const bookingRoutes = require('./api/mysql/routes/booking.routes');
 const userRoutes = require('./api/mysql/routes/user.routes');
 const paymentRoutes = require('./api/mysql/routes/payment.routes');
+const readingsRoutes = require('./api/mongodb/routes/readings.routes');
 
 // Función para iniciar el servidor
 const startServer = async () => {
@@ -72,6 +73,9 @@ const startServer = async () => {
         app.use('/api/bookings', bookingRoutes);
         app.use('/api/users', userRoutes);
         app.use('/api/payments', paymentRoutes);
+
+        // Rutas API MongoDB
+        app.use('/api/mongodb', readingsRoutes);
 
         // Manejo de errores 404
         app.use((req, res, next) => {
