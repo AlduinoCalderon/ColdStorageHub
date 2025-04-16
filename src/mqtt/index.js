@@ -138,8 +138,8 @@ class MQTTClient {
 
         const minTemp = Math.min(...tempReadings.map(r => r.value));
         const maxTemp = Math.max(...tempReadings.map(r => r.value));
-        const minHumidity = Math.min(...humReadings.map(r => r.value));
-        const maxHumidity = Math.max(...humReadings.map(r => r.value));
+        const minHumidity = Math.min(...humReadings.map(r => r.value)) - 1;
+        const maxHumidity = Math.max(...humReadings.map(r => r.value)) + 1;
 
         const payload = {
             minTemp: minTemp.toString(),

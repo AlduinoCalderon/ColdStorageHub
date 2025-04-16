@@ -18,8 +18,8 @@ DHT dht(DHTPIN, DHTTYPE);
 #define ECHO2 25
 
 // WiFi
-const char* ssid = "TEQS_Guest1";
-const char* password = "1234teqs6789teqs";
+const char* ssid = "SPW_X12_7918d7";
+const char* password = "2bddca7fae65c";
 
 // MQTT CloudAMQP (con TLS)
 const char* mqtt_server = "chameleon.lmq.cloudamqp.com";
