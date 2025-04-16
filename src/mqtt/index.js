@@ -136,8 +136,8 @@ class MQTTClient {
         console.log(`🌡️  Lecturas de temperatura: ${tempReadings.length}`);
         console.log(`💧 Lecturas de humedad: ${humReadings.length}`);
 
-        const minTemp = Math.min(...tempReadings.map(r => r.value));
-        const maxTemp = Math.max(...tempReadings.map(r => r.value));
+        const minTemp = Math.min(...tempReadings.map(r => r.value))-1;
+        const maxTemp = Math.max(...tempReadings.map(r => r.value))+1;
         const minHumidity = Math.min(...humReadings.map(r => r.value)) - 1;
         const maxHumidity = Math.max(...humReadings.map(r => r.value)) + 1;
 
