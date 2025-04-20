@@ -3,6 +3,7 @@ const router = express.Router();
 const { testConnection: testMySQLConnection } = require('../../../config/mysql');
 const { connectMongoDB } = require('../../../config/mongodb');
 const mqttClient = require('../../../mqtt');
+const Logger = require('../../../utils/logger');
 
 let lastExternalHealthCheck = null;
 let externalHealthStatus = null;
@@ -14,8 +15,9 @@ async function checkExternalHealth() {
         const data = await response.json();
         externalHealthStatus = data;
         lastExternalHealthCheck = new Date();
+        Logger.success('External API health check completed');
     } catch (error) {
-        console.error('Error checking external health:', error);
+        Logger.error(`External API health check failed: ${error.message}`);
         externalHealthStatus = { status: 'ERROR', error: error.message };
     }
 }
@@ -44,6 +46,9 @@ router.get('/health', async (req, res) => {
             }
         };
 
+        // Log del estado de salud
+        Logger.health(healthStatus);
+
         res.json(healthStatus);
 
         // Si no se ha verificado la API externa o la última verificación fue hace más de 5 minutos
@@ -51,7 +56,7 @@ router.get('/health', async (req, res) => {
             checkExternalHealth();
         }
     } catch (error) {
-        console.error('Error in health check:', error);
+        Logger.error(`Health check failed: ${error.message}`);
         res.status(500).json({
             status: 'ERROR',
             error: error.message
