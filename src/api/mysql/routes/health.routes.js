@@ -3,7 +3,6 @@ const router = express.Router();
 const { testConnection: testMySQLConnection } = require('../../../config/mysql');
 const { connectMongoDB } = require('../../../config/mongodb');
 const mqttClient = require('../../../mqtt');
-const fetch = require('node-fetch');
 
 let lastExternalHealthCheck = null;
 let externalHealthStatus = null;
