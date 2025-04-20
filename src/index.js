@@ -9,11 +9,7 @@ const { testConnection: testMySQLConnection } = require('./config/mysql');
 require('dotenv').config();
 
 // Importar rutas
-const warehouseRoutes = require('./api/mysql/routes/warehouse.routes');
-const storageUnitRoutes = require('./api/mysql/routes/storage-unit.routes');
-const bookingRoutes = require('./api/mysql/routes/booking.routes');
-const userRoutes = require('./api/mysql/routes/user.routes');
-const paymentRoutes = require('./api/mysql/routes/payment.routes');
+const mysqlRoutes = require('./api/mysql/routes/index.routes');
 const readingsRoutes = require('./api/mongodb/routes/readings.routes');
 
 // Función para iniciar el servidor
@@ -57,22 +53,8 @@ const startServer = async () => {
         });
         app.use(limiter);
 
-        // Ruta de estado
-        app.get('/api/health', (req, res) => {
-            res.json({
-                status: 'OK',
-                mqtt: mqttClient.client ? mqttClient.client.connected : false,
-                mongodb: mongooseConnection.readyState === 1,
-                mysql: true // Asumiendo que la conexión MySQL está activa
-            });
-        });
-
         // Rutas API MySQL
-        app.use('/api/warehouses', warehouseRoutes);
-        app.use('/api/storage-units', storageUnitRoutes);
-        app.use('/api/bookings', bookingRoutes);
-        app.use('/api/users', userRoutes);
-        app.use('/api/payments', paymentRoutes);
+        app.use('/api', mysqlRoutes);
 
         // Rutas API MongoDB
         app.use('/api/mongodb', readingsRoutes);
