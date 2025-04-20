@@ -44,7 +44,7 @@ class Logger {
         const checkStatus = timeSinceLastCheck === null ? '⏳ Nunca' : 
                           timeSinceLastCheck >= 5 ? '🔄 Pendiente' : 
                           `✅ ${timeSinceLastCheck}m`;
-// Loguear el estado de la API externa con indicador de delay
+
         console.log(`
 🌡️  System Health Status
 ┌─────────────────────────────
