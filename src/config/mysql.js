@@ -1,5 +1,6 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
+const Logger = require('../utils/logger');
 
 // Configuración para MySQL
 const sequelize = new Sequelize(process.env.MYSQL_DATABASE_URL, {
@@ -38,10 +39,11 @@ const sequelize = new Sequelize(process.env.MYSQL_DATABASE_URL, {
 const testConnection = async () => {
     try {
         await sequelize.authenticate();
-        console.log('MySQL connection has been established successfully.');
+        Logger.success('MySQL connection has been established successfully.');
+        return true;
     } catch (error) {
-        console.error('Unable to connect to MySQL database:', error);
-        throw error;
+        Logger.error(`Unable to connect to MySQL database: ${error.message}`);
+        return false;
     }
 };
 
