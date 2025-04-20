@@ -20,7 +20,7 @@ class Logger {
     static info(message) {
         console.log(
             this.#formatBox(
-                `${chalk.blue('ℹ')} ${chalk.blue(this.#getTimestamp())} ${message}`,
+                `${chalk.blueBright('ℹ')} ${chalk.blueBright(this.#getTimestamp())} ${message}`,
                 'INFO',
                 'blue'
             )
@@ -30,7 +30,7 @@ class Logger {
     static success(message) {
         console.log(
             this.#formatBox(
-                `${chalk.green('✓')} ${chalk.green(this.#getTimestamp())} ${message}`,
+                `${chalk.greenBright('✓')} ${chalk.greenBright(this.#getTimestamp())} ${message}`,
                 'SUCCESS',
                 'green'
             )
@@ -40,7 +40,7 @@ class Logger {
     static error(message) {
         console.error(
             this.#formatBox(
-                `${chalk.red('✗')} ${chalk.red(this.#getTimestamp())} ${message}`,
+                `${chalk.redBright('✗')} ${chalk.redBright(this.#getTimestamp())} ${message}`,
                 'ERROR',
                 'red'
             )
@@ -50,7 +50,7 @@ class Logger {
     static warning(message) {
         console.warn(
             this.#formatBox(
-                `${chalk.yellow('⚠')} ${chalk.yellow(this.#getTimestamp())} ${message}`,
+                `${chalk.yellowBright('⚠')} ${chalk.yellowBright(this.#getTimestamp())} ${message}`,
                 'WARNING',
                 'yellow'
             )
