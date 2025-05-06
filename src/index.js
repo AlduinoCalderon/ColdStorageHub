@@ -3,8 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { createServer } = require('http');
 const { connectMongoDB } = require('./config/mongodb');
 const mqttClient = require('./mqtt');
+const websocketServer = require('./websocket');
 const { testConnection: testMySQLConnection } = require('./config/mysql');
 require('dotenv').config();
 
@@ -17,13 +19,17 @@ const startServer = async () => {
     try {
         // Probar conexión MySQL
         await testMySQLConnection();
-        console.log('✅ Conexión a MySQL establecida correctamente');
+        console.log('[MySQL] Connection established');
 
         // Conectar a MongoDB
         const mongooseConnection = await connectMongoDB();
 
         // Iniciar el servidor Express
         const app = express();
+        const httpServer = createServer(app);
+
+        // Inicializar WebSocket
+        websocketServer.initialize(httpServer);
 
         // Middleware de seguridad
         app.use(helmet());
@@ -41,7 +47,7 @@ const startServer = async () => {
         // Middleware de logging solo en desarrollo
         app.use((req, res, next) => {
             if (process.env.NODE_ENV === 'development' && req.method === 'POST') {
-                console.log('Body recibido:', req.body);
+                console.log('[HTTP] Request body:', req.body);
             }
             next();
         });
@@ -61,23 +67,23 @@ const startServer = async () => {
 
         // Manejo de errores 404
         app.use((req, res, next) => {
-            const error = new Error('Ruta no encontrada');
+            const error = new Error('Route not found');
             error.status = 404;
             next(error);
         });
 
         // Manejo de errores generales
         app.use((err, req, res, next) => {
-            console.error(`[ERROR] ${err.message}`);
+            console.error(`[HTTP] Error: ${err.message}`);
             res.status(err.status || 500).json({
-                message: err.status === 404 ? err.message : 'Error interno del servidor',
+                message: err.status === 404 ? err.message : 'Internal server error',
                 ...(process.env.NODE_ENV === 'development' && { error: err.stack })
             });
         });
 
         const PORT = process.env.PORT || 3001;
-        app.listen(PORT, () => {
-            console.log(`Servidor corriendo`);
+        httpServer.listen(PORT, () => {
+            console.log(`[HTTP] Server running on port ${PORT}`);
         });
 
         // Iniciar cliente MQTT si está habilitado
@@ -85,7 +91,7 @@ const startServer = async () => {
             await mqttClient.connect();
         }
     } catch (error) {
-        console.error('Error al iniciar el servidor:', error);
+        console.error('[Server] Startup error:', error);
         process.exit(1);
     }
 };

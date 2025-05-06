@@ -2,6 +2,7 @@
 const mqtt = require('mqtt');
 const { connectMongoDB } = require('../config/mongodb');
 const { Reading } = require('../api/mongodb/models/reading.model');
+const websocketServer = require('../websocket');
 require('dotenv').config();
 
 // Variable para trackear el estado de la conexión
@@ -24,7 +25,7 @@ class MQTTClient {
         const MQTT_PASSWORD = process.env.MQTT_PASSWORD;
 
         const mqttUrl = MQTT_BROKER_URL.startsWith('mqtt://') ? MQTT_BROKER_URL : `mqtt://${MQTT_BROKER_URL}`;
-        console.log('Conectando a MQTT:', mqttUrl);
+        console.log('[MQTT] Connecting to:', mqttUrl);
 
         this.client = mqtt.connect(mqttUrl, {
             username: MQTT_USERNAME,
@@ -44,83 +45,86 @@ class MQTTClient {
 
     setupEventHandlers() {
         this.client.on('connect', () => {
-            console.log('🔌 Conectado al broker MQTT');
+            console.log('[MQTT] Connected to broker');
             this.client.subscribe('warehouse/unit/+/sensor/+', (err) => {
                 if (err) {
-                    console.error('❌ Error al suscribirse:', err);
+                    console.error('[MQTT] Subscription error:', err);
                 } else {
-                    console.log('✅ Suscrito a tópicos de sensores');
+                    console.log('[MQTT] Subscribed to sensor topics');
                 }
             });
         });
 
         this.client.on('error', (error) => {
-            console.error('❌ Error de cliente MQTT:', error);
+            console.error('[MQTT] Client error:', error);
         });
 
         this.client.on('reconnect', () => {
-            console.log('🔄 Reconectando al broker MQTT...');
+            console.log('[MQTT] Reconnecting to broker...');
         });
 
         this.client.on('offline', () => {
-            console.log('📴 Cliente MQTT desconectado');
+            console.log('[MQTT] Client disconnected');
         });
 
         this.client.on('close', () => {
-            console.log('🔒 Conexión MQTT cerrada');
+            console.log('[MQTT] Connection closed');
         });
 
         this.client.on('message', this.handleMessage.bind(this));
     }
 
     async handleMessage(topic, message) {
-        console.log('📥 Mensaje recibido en tópico:', topic);
-        console.log('📦 Contenido del mensaje:', message.toString());
-        
         try {
             const data = JSON.parse(message);
             const unitId = topic.split('/')[2];
             const sensorType = topic.split('/')[4];
             
-            console.log('🔍 Procesando lectura:', {
+            console.log('[MQTT] Received message:', {
+                topic,
                 unitId,
                 sensorType,
                 value: data.value,
                 timestamp: data.timestamp
             });
 
-            // Verificar si el sensor es de proximidad y el valor es menor a 15
-            if ((sensorType === 'proximity1' || sensorType === 'proximity2') && parseFloat(data.value) < 15) {
-                console.log(`🚨 Espacio ocupado detectado en ${sensorType}. Proximidad: ${data.value}`);
-            }
-
             // Guardar en MongoDB
             const reading = new Reading({
                 unitId,
                 sensorType,
-                value: parseFloat(data.value), // Asegurar que es número
+                value: parseFloat(data.value),
                 timestamp: new Date(data.timestamp)
             });
 
             await reading.save();
-            console.log('💾 Lectura guardada en MongoDB:', reading);
+
+            // Reenviar mensaje a través de WebSocket
+            websocketServer.broadcastMQTTMessage(topic, {
+                unitId,
+                sensorType,
+                value: parseFloat(data.value),
+                timestamp: data.timestamp
+            });
+
+            // Verificar si el sensor es de proximidad y el valor es menor a 15
+            if ((sensorType === 'proximity1' || sensorType === 'proximity2') && parseFloat(data.value) < 15) {
+                console.log(`[MQTT] Space occupied detected in ${sensorType}. Proximity: ${data.value}`);
+            }
 
             // Agregar al buffer
             this.readingsBuffer.push({
                 unitId,
                 sensorType,
-                value: parseFloat(data.value), // Asegurar que es número
+                value: parseFloat(data.value),
                 timestamp: data.timestamp
             });
-
-            console.log(`📊 Buffer actual: ${this.readingsBuffer.length}/${this.BUFFER_SIZE} lecturas`);
 
             // Procesar buffer si está lleno
             if (this.readingsBuffer.length >= this.BUFFER_SIZE) {
                 await this.processReadingsBuffer();
             }
         } catch (error) {
-            console.error('❌ Error procesando mensaje:', error);
+            console.error('[MQTT] Error processing message:', error);
         }
     }
 
