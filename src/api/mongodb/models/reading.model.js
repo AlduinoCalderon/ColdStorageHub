@@ -5,8 +5,12 @@ const readingSchema = new mongoose.Schema({
     sensorType: String,
     value: Number,
     timestamp: Date
-}, { collection: 'Readings', versionKey: false  });
+}, { 
+    collection: 'Readings',
+    versionKey: false
+});
 
-const Reading = mongoose.model('Reading', readingSchema);
+// Asegurarnos de que el modelo use la base de datos correcta
+const Reading = mongoose.model('Reading', readingSchema, 'Readings');
 
 module.exports = { Reading }; 
