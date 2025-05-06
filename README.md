@@ -103,14 +103,35 @@ src/
 
 ### MongoDB API
 
-#### Sensores
-- GET /api/mongodb/sensors
-- POST /api/mongodb/sensors
-- GET /api/mongodb/sensors/:id/readings
+### Proximity Sensor Readings
 
-#### Lecturas
-- POST /api/mongodb/readings
-- GET /api/mongodb/readings/stats
+#### GET /api/mongodb/readings/proximity
+Returns the latest readings from proximity sensors (proximity1 and proximity2).
+
+Query Parameters:
+- `unitId` (optional): Filter readings by unit ID
+
+Response:
+```json
+{
+    "proximity1": {
+        "unitId": "1",
+        "sensorType": "proximity1",
+        "value": 34.56,
+        "timestamp": "2025-04-16T14:13:25.000+00:00"
+    },
+    "proximity2": {
+        "unitId": "1",
+        "sensorType": "proximity2",
+        "value": 157.4,
+        "timestamp": "2025-04-07T03:35:18.000+00:00"
+    }
+}
+```
+
+Error Responses:
+- 404: When unitId is provided but no readings are found
+- 500: Server error when fetching readings
 
 ## Siguientes Pasos
 
