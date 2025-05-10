@@ -7,18 +7,29 @@ const Logger = require('../../../utils/logger');
 
 let lastExternalHealthCheck = null;
 let externalHealthStatus = null;
+let lastAnimalesHealthCheck = null;
+let animalesHealthStatus = null;
 
-// Función para verificar la salud de la API externa
+// Función para verificar la salud de las APIs externas
 async function checkExternalHealth() {
     try {
-        const response = await fetch('https://server-http-mfxe.onrender.com/api/health');
-        const data = await response.json();
-        externalHealthStatus = data;
+        // Verificar primera API
+        const response1 = await fetch('https://server-http-mfxe.onrender.com/api/health');
+        const data1 = await response1.json();
+        externalHealthStatus = data1;
+        
+        // Verificar segunda API
+        const response2 = await fetch('https://animales.onrender.com/health');
+        const data2 = await response2.json();
+        animalesHealthStatus = data2;
+        
         lastExternalHealthCheck = new Date();
-        Logger.success('External API health check completed');
+        lastAnimalesHealthCheck = new Date();
+        Logger.success('External APIs health check completed');
     } catch (error) {
-        Logger.error(`External API health check failed: ${error.message}`);
+        Logger.error(`External APIs health check failed: ${error.message}`);
         externalHealthStatus = { status: 'ERROR', error: error.message };
+        animalesHealthStatus = { status: 'ERROR', error: error.message };
     }
 }
 
@@ -40,9 +51,15 @@ router.get('/health', async (req, res) => {
             mqtt: mqttClient.client ? mqttClient.client.connected : false,
             mongodb: mongooseConnection.readyState === 1,
             mysql: mysqlStatus,
-            externalApi: {
-                status: externalHealthStatus,
-                lastChecked: lastExternalHealthCheck
+            externalApis: {
+                server: {
+                    status: externalHealthStatus,
+                    lastChecked: lastExternalHealthCheck
+                },
+                animales: {
+                    status: animalesHealthStatus,
+                    lastChecked: lastAnimalesHealthCheck
+                }
             }
         };
 
@@ -51,7 +68,7 @@ router.get('/health', async (req, res) => {
 
         res.json(healthStatus);
 
-        // Si no se ha verificado la API externa o la última verificación fue hace más de 5 minutos
+        // Si no se ha verificado las APIs externas o la última verificación fue hace más de 5 minutos
         if (!lastExternalHealthCheck || (new Date() - lastExternalHealthCheck) > 5 * 60 * 1000) {
             checkExternalHealth();
         }
