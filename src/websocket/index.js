@@ -10,7 +10,7 @@ class WebSocketServer {
     initialize(server) {
         this.io = new Server(server, {
             cors: {
-                origin: process.env.CORS_ORIGIN || '*',
+                origin: '*',
                 methods: ['GET', 'POST']
             }
         });

@@ -49,24 +49,17 @@ const float TEMP_MIN = -50.0;
 const float TEMP_MAX = 100.0;
 
 void setup() {
-  tft.init();
-  tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
   Serial.begin(115200);
+  Serial.println("Starting system...");
 
-  logStatus("Starting system...");
-
+  // Test DHT
   dht.begin();
   float testTemp = dht.readTemperature();
-  delay(500);
-  if (isnan(testTemp)) {
-    delay(1000);
-    testTemp = dht.readTemperature();
-  }
-  dhtAvailable = !isnan(testTemp);
-  logStatus(dhtAvailable ? "DHT ready" : "DHT not found");
-  delay(1000);
+  float testHum = dht.readHumidity();
+  dhtAvailable = !isnan(testTemp) && !isnan(testHum);
+  Serial.printf("DHT: %s\n", dhtAvailable ? "OK" : "NO DETECTA");
 
+  // Test Proximity Sensors
   pinMode(TRIG1, OUTPUT);
   pinMode(ECHO1, INPUT);
   pinMode(TRIG2, OUTPUT);
@@ -74,41 +67,27 @@ void setup() {
 
   float dist1 = medirDistancia(TRIG1, ECHO1);
   proximity1Available = dist1 >= 0;
-  logStatus(proximity1Available ? "Proximity 1 ready" : "Proximity 1 failed");
-  delay(1000);
+  Serial.printf("Proximidad 1: %s\n", proximity1Available ? "OK" : "NO DETECTA");
 
   float dist2 = medirDistancia(TRIG2, ECHO2);
   proximity2Available = dist2 >= 0;
-  logStatus(proximity2Available ? "Proximity 2 ready" : "Proximity 2 failed");
-  delay(1000);
+  Serial.printf("Proximidad 2: %s\n", proximity2Available ? "OK" : "NO DETECTA");
 
   conectarWiFi();
-
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    logStatus("NTP failed");
-  } else {
-    logStatus("Time synchronized");
-  }
-  delay(1000);
-
   secureClient.setInsecure();
   client.setServer(mqtt_server, tls_port);
   conectarMQTT();
-
-  logStatus("System ready");
-  delay(2000);
 }
 
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
-    logStatus("WiFi disconnected");
+    Serial.println("WiFi disconnected");
     conectarWiFi();
   }
 
   if (!client.connected()) {
-    logStatus("MQTT disconnected");
+    Serial.println("MQTT disconnected");
     conectarMQTT();
   }
   client.loop();
@@ -116,33 +95,20 @@ void loop() {
   float temperature = NAN, humidity = NAN;
   float distance1 = -1, distance2 = -1;
 
-  if (dhtAvailable) {
-    temperature = dht.readTemperature();
-    humidity = dht.readHumidity();
-    if (isnan(temperature) || isnan(humidity)) {
-      logStatus("DHT error");
-    } else if (temperature < TEMP_MIN || temperature > TEMP_MAX) {
-      logStatus("Temp suspicious: " + String(temperature));
-    }
-  }
+  // DHT readings
+  temperature = dht.readTemperature();
+  humidity = dht.readHumidity();
+  Serial.printf("DHT: Temp=%.1f°C, Hum=%.1f%%\n", temperature, humidity);
 
-  if (proximity1Available) distance1 = medirDistancia(TRIG1, ECHO1);
-  if (proximity2Available) distance2 = medirDistancia(TRIG2, ECHO2);
+  // Proximity readings
+  distance1 = medirDistancia(TRIG1, ECHO1);
+  Serial.printf("Proximidad 1: %s\n", distance1 >= 0 ? "OK" : "NO DETECTA");
 
-  mostrarEnPantalla(temperature, humidity, distance1, distance2);
+  distance2 = medirDistancia(TRIG2, ECHO2);
+  Serial.printf("Proximidad 2: %s\n", distance2 >= 0 ? "OK" : "NO DETECTA");
+
   publicarEnMQTT(temperature, humidity, distance1, distance2);
-
-  logStatus("Waiting for next cycle...");
   delay(5000);
-}
-
-void logStatus(String message) {
-  tft.fillRect(0, 200, 320, 30, TFT_BLACK);
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-  tft.setTextSize(1);
-  tft.setCursor(10, 200);
-  tft.println("Status: " + message);
-  Serial.println("Status: " + message);
 }
 
 void conectarWiFi() {
@@ -155,27 +121,27 @@ void conectarWiFi() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    logStatus("WiFi OK: " + WiFi.localIP().toString());
+    Serial.println("WiFi OK: " + WiFi.localIP().toString());
   } else {
-    logStatus("WiFi failed");
+    Serial.println("WiFi failed");
   }
 }
 
 void conectarMQTT() {
   int attempts = 0;
   while (!client.connected() && attempts < 5) {
-    logStatus("MQTT try " + String(attempts + 1));
+    Serial.println("MQTT try " + String(attempts + 1));
     if (client.connect("LiligoClient", mqtt_user, mqtt_password)) {
-      logStatus("MQTT connected");
+      Serial.println("MQTT connected");
     } else {
-      logStatus("MQTT fail rc=" + String(client.state()));
+      Serial.println("MQTT fail rc=" + String(client.state()));
       delay(1000);
       attempts++;
     }
   }
 
   if (!client.connected()) {
-    logStatus("MQTT failed after retries");
+    Serial.println("MQTT failed after retries");
   }
 }
 
@@ -187,56 +153,48 @@ float medirDistancia(int trigPin, int echoPin) {
   digitalWrite(trigPin, LOW);
 
   long duration = pulseIn(echoPin, HIGH, DISTANCE_TIMEOUT);
-  if (duration == 0) return -1;
+  if (duration == 0) {
+    Serial.printf("Sensor %d: No echo\n", trigPin);
+    return -1;
+  }
 
   float distance = duration * 0.034 / 2;
-  if (distance > 400 || distance < 2) return -1;
+  if (distance > 400 || distance < 2) {
+    Serial.printf("Sensor %d: %.1f cm (fuera de rango)\n", trigPin, distance);
+    return -1;
+  }
+  
+  Serial.printf("Sensor %d: %.1f cm\n", trigPin, distance);
   return distance;
 }
 
-void mostrarEnPantalla(float temperature, float humidity, float distance1, float distance2) {
-  tft.fillRect(0, 10, 320, 180, TFT_BLACK);
-  tft.setTextColor(TFT_WHITE, TFT_BLACK);
-  tft.setTextSize(2);
+void publicarEnMQTT(float temperature, float humidity, float distance1, float distance2) {
+  String timestamp = obtenerTimestamp();
+  char payload[200];
 
-  tft.setCursor(10, 10);
-  tft.println("Sensor Readings:");
-
-  tft.setCursor(10, 40);
   if (!isnan(temperature)) {
-    if (temperature < 0)
-      tft.setTextColor(TFT_CYAN);
-    else if (temperature > 30)
-      tft.setTextColor(TFT_RED);
-    else
-      tft.setTextColor(TFT_GREEN);
-    tft.printf("Temp: %.2f C", temperature);
-    tft.setTextColor(TFT_WHITE);
-  } else {
-    tft.print("Temp: N/A");
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", temperature, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/temperature", payload);
+    Serial.println("Sent temperature");
   }
 
-  tft.setCursor(10, 70);
-  tft.print("Humidity: ");
-  if (!isnan(humidity)) tft.printf("%.2f %%", humidity);
-  else tft.print("N/A");
+  if (!isnan(humidity)) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", humidity, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/humidity", payload);
+    Serial.println("Sent humidity");
+  }
 
-  tft.setCursor(10, 100);
-  tft.print("Dist1: ");
-  if (distance1 >= 0) tft.printf("%.2f cm", distance1);
-  else tft.print("N/A");
+  if (distance1 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance1, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity1", payload);
+    Serial.println("Sent proximity 1");
+  }
 
-  tft.setCursor(10, 130);
-  tft.print("Dist2: ");
-  if (distance2 >= 0) tft.printf("%.2f cm", distance2);
-  else tft.print("N/A");
-
-  int count = 0;
-  if (!isnan(temperature) && !isnan(humidity)) count++;
-  if (distance1 >= 0) count++;
-  if (distance2 >= 0) count++;
-  tft.setCursor(10, 160);
-  tft.printf("Active: %d/3", count);
+  if (distance2 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance2, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity2", payload);
+    Serial.println("Sent proximity 2");
+  }
 }
 
 String obtenerTimestamp() {
@@ -251,33 +209,4 @@ String obtenerTimestamp() {
   }
 
   return String(timestamp);
-}
-
-void publicarEnMQTT(float temperature, float humidity, float distance1, float distance2) {
-  String timestamp = obtenerTimestamp();
-  char payload[200];
-
-  if (!isnan(temperature)) {
-    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", temperature, timestamp.c_str());
-    client.publish("warehouse/unit/1/sensor/temperature", payload);
-    logStatus("Sent temperature");
-  }
-
-  if (!isnan(humidity)) {
-    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", humidity, timestamp.c_str());
-    client.publish("warehouse/unit/1/sensor/humidity", payload);
-    logStatus("Sent humidity");
-  }
-
-  if (distance1 >= 0) {
-    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance1, timestamp.c_str());
-    client.publish("warehouse/unit/1/sensor/proximity1", payload);
-    logStatus("Sent proximity 1");
-  }
-
-  if (distance2 >= 0) {
-    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance2, timestamp.c_str());
-    client.publish("warehouse/unit/1/sensor/proximity2", payload);
-    logStatus("Sent proximity 2");
-  }
 }
