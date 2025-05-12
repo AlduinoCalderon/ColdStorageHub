@@ -88,17 +88,7 @@ class MQTTClient {
                 timestamp: data.timestamp
             });
 
-            // Guardar en MongoDB
-            const reading = new Reading({
-                unitId,
-                sensorType,
-                value: parseFloat(data.value),
-                timestamp: new Date(data.timestamp)
-            });
-
-            await reading.save();
-
-            // Reenviar mensaje a través de WebSocket
+            // Reenviar mensaje a través de WebSocket inmediatamente
             websocketServer.broadcastMQTTMessage(topic, {
                 unitId,
                 sensorType,
@@ -111,12 +101,12 @@ class MQTTClient {
                 console.log(`[MQTT] Space occupied detected in ${sensorType}. Proximity: ${data.value}`);
             }
 
-            // Agregar al buffer
+            // Agregar al buffer para MongoDB
             this.readingsBuffer.push({
                 unitId,
                 sensorType,
                 value: parseFloat(data.value),
-                timestamp: data.timestamp
+                timestamp: new Date(data.timestamp)
             });
 
             // Procesar buffer si está lleno
@@ -148,27 +138,32 @@ class MQTTClient {
         console.log('🔄 Procesando buffer de lecturas...');
         console.log(`📊 Total de lecturas en buffer: ${this.readingsBuffer.length}`);
 
-        const tempReadings = this.readingsBuffer.filter(r => r.sensorType === 'temperature');
-        const humReadings = this.readingsBuffer.filter(r => r.sensorType === 'humidity');
-
-        console.log(`🌡️  Lecturas de temperatura: ${tempReadings.length}`);
-        console.log(`💧 Lecturas de humedad: ${humReadings.length}`);
-
-        const minTemp = Math.min(...tempReadings.map(r => r.value))-1;
-        const maxTemp = Math.max(...tempReadings.map(r => r.value))+1;
-        const minHumidity = Math.min(...humReadings.map(r => r.value)) - 1;
-        const maxHumidity = Math.max(...humReadings.map(r => r.value)) + 1;
-
-        const payload = {
-            minTemp: minTemp.toString(),
-            maxTemp: maxTemp.toString(),
-            minHumidity: minHumidity.toString(),
-            maxHumidity: maxHumidity.toString()
-        };
-
-        console.log('📤 Enviando datos a la API:', payload);
-
         try {
+            // Insertar todas las lecturas en MongoDB en una sola operación
+            await Reading.insertMany(this.readingsBuffer);
+            console.log('✅ Datos guardados en MongoDB exitosamente');
+
+            // Procesar datos para la API
+            const tempReadings = this.readingsBuffer.filter(r => r.sensorType === 'temperature');
+            const humReadings = this.readingsBuffer.filter(r => r.sensorType === 'humidity');
+
+            console.log(`🌡️  Lecturas de temperatura: ${tempReadings.length}`);
+            console.log(`💧 Lecturas de humedad: ${humReadings.length}`);
+
+            const minTemp = Math.min(...tempReadings.map(r => r.value))-1;
+            const maxTemp = Math.max(...tempReadings.map(r => r.value))+1;
+            const minHumidity = Math.min(...humReadings.map(r => r.value)) - 1;
+            const maxHumidity = Math.max(...humReadings.map(r => r.value)) + 1;
+
+            const payload = {
+                minTemp: minTemp.toString(),
+                maxTemp: maxTemp.toString(),
+                minHumidity: minHumidity.toString(),
+                maxHumidity: maxHumidity.toString()
+            };
+
+            console.log('📤 Enviando datos a la API:', payload);
+
             const response = await fetch('https://coldstoragehub.onrender.com/API/storage-units/1', {
                 method: 'PUT',
                 headers: {
@@ -199,7 +194,7 @@ class MQTTClient {
             this.retryCount = 0;
             console.log('🧹 Buffer limpiado');
         } catch (error) {
-            console.error('❌ Error al enviar datos a la API:', error);
+            console.error('❌ Error al procesar datos:', error);
             if (this.retryCount < this.MAX_RETRIES) {
                 console.log(`🔄 Reintentando en ${this.RETRY_DELAY/1000} segundos...`);
                 this.retryCount++;
