@@ -8,35 +8,33 @@ router.get('/readings/proximity', async (req, res) => {
         const { unitId } = req.query;
         const baseQuery = unitId ? { unitId } : {};
 
-        // Get latest reading for proximity1
-        const latestProximity1 = await Reading.findOne({
-            ...baseQuery,
-            sensorType: 'proximity1'
-        })
-        .sort({ timestamp: -1 })
-        .select('unitId sensorType value timestamp -_id')
-        .lean();
+        // Get latest readings for all sensors
+        const sensorTypes = [
+            'proximity1', 'proximity2', 'proximity3', 'proximity4', 'proximity5', 'proximity6',
+            'temperature', 'humidity'
+        ];
 
-        // Get latest reading for proximity2
-        const latestProximity2 = await Reading.findOne({
-            ...baseQuery,
-            sensorType: 'proximity2'
-        })
-        .sort({ timestamp: -1 })
-        .select('unitId sensorType value timestamp -_id')
-        .lean();
+        const latestReadings = {};
+        
+        for (const sensorType of sensorTypes) {
+            const reading = await Reading.findOne({
+                ...baseQuery,
+                sensorType
+            })
+            .sort({ timestamp: -1 })
+            .select('unitId sensorType value timestamp -_id')
+            .lean();
 
-        const response = {
-            proximity1: latestProximity1 || null,
-            proximity2: latestProximity2 || null,
-            timestamp: new Date().toISOString()
-        };
+            if (reading) {
+                latestReadings[sensorType] = reading;
+            }
+        }
 
-        res.json(response);
+        res.json(latestReadings);
     } catch (error) {
         console.error('[Readings] Error:', error.message);
         res.status(500).json({ 
-            error: 'Error fetching latest proximity readings',
+            error: 'Error fetching latest sensor readings',
             details: error.message 
         });
     }
