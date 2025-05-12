@@ -12,10 +12,18 @@
 DHT dht(DHTPIN, DHTTYPE);
 
 // Proximidad
-#define TRIG1 21
-#define ECHO1 36
-#define TRIG2 26
-#define ECHO2 25
+#define TRIG1 26
+#define ECHO1 25
+#define TRIG2 21
+#define ECHO2 36
+#define TRIG3 16
+#define ECHO3 17
+#define TRIG4 18
+#define ECHO4 19
+#define TRIG5 23
+#define ECHO5 35
+#define TRIG6 5
+#define ECHO6 3
 
 // WiFi
 const char* ssid = "SPW_X12_7918d7";
@@ -44,6 +52,10 @@ const unsigned long DISTANCE_TIMEOUT = 25000;
 bool dhtAvailable = false;
 bool proximity1Available = false;
 bool proximity2Available = false;
+bool proximity3Available = false;
+bool proximity4Available = false;
+bool proximity5Available = false;
+bool proximity6Available = false;
 
 const float TEMP_MIN = -50.0;
 const float TEMP_MAX = 100.0;
@@ -64,6 +76,14 @@ void setup() {
   pinMode(ECHO1, INPUT);
   pinMode(TRIG2, OUTPUT);
   pinMode(ECHO2, INPUT);
+  pinMode(TRIG3, OUTPUT);
+  pinMode(ECHO3, INPUT);
+  pinMode(TRIG4, OUTPUT);
+  pinMode(ECHO4, INPUT);
+  pinMode(TRIG5, OUTPUT);
+  pinMode(ECHO5, INPUT);
+  pinMode(TRIG6, OUTPUT);
+  pinMode(ECHO6, INPUT);
 
   float dist1 = medirDistancia(TRIG1, ECHO1);
   proximity1Available = dist1 >= 0;
@@ -72,6 +92,22 @@ void setup() {
   float dist2 = medirDistancia(TRIG2, ECHO2);
   proximity2Available = dist2 >= 0;
   Serial.printf("Proximidad 2: %s\n", proximity2Available ? "OK" : "NO DETECTA");
+
+  float dist3 = medirDistancia(TRIG3, ECHO3);
+  proximity3Available = dist3 >= 0;
+  Serial.printf("Proximidad 3: %s\n", proximity3Available ? "OK" : "NO DETECTA");
+
+  float dist4 = medirDistancia(TRIG4, ECHO4);
+  proximity4Available = dist4 >= 0;
+  Serial.printf("Proximidad 4: %s\n", proximity4Available ? "OK" : "NO DETECTA");
+
+  float dist5 = medirDistancia(TRIG5, ECHO5);
+  proximity5Available = dist5 >= 0;
+  Serial.printf("Proximidad 5: %s\n", proximity5Available ? "OK" : "NO DETECTA");
+
+  float dist6 = medirDistancia(TRIG6, ECHO6);
+  proximity6Available = dist6 >= 0;
+  Serial.printf("Proximidad 6: %s\n", proximity6Available ? "OK" : "NO DETECTA");
 
   conectarWiFi();
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
@@ -93,7 +129,7 @@ void loop() {
   client.loop();
 
   float temperature = NAN, humidity = NAN;
-  float distance1 = -1, distance2 = -1;
+  float distance1 = -1, distance2 = -1, distance3 = -1, distance4 = -1, distance5 = -1, distance6 = -1;
 
   // DHT readings
   temperature = dht.readTemperature();
@@ -107,7 +143,19 @@ void loop() {
   distance2 = medirDistancia(TRIG2, ECHO2);
   Serial.printf("Proximidad 2: %s\n", distance2 >= 0 ? "OK" : "NO DETECTA");
 
-  publicarEnMQTT(temperature, humidity, distance1, distance2);
+  distance3 = medirDistancia(TRIG3, ECHO3);
+  Serial.printf("Proximidad 3: %s\n", distance3 >= 0 ? "OK" : "NO DETECTA");
+
+  distance4 = medirDistancia(TRIG4, ECHO4);
+  Serial.printf("Proximidad 4: %s\n", distance4 >= 0 ? "OK" : "NO DETECTA");
+
+  distance5 = medirDistancia(TRIG5, ECHO5);
+  Serial.printf("Proximidad 5: %s\n", distance5 >= 0 ? "OK" : "NO DETECTA");
+
+  distance6 = medirDistancia(TRIG6, ECHO6);
+  Serial.printf("Proximidad 6: %s\n", distance6 >= 0 ? "OK" : "NO DETECTA");
+
+  publicarEnMQTT(temperature, humidity, distance1, distance2, distance3, distance4, distance5, distance6);
   delay(5000);
 }
 
@@ -168,7 +216,7 @@ float medirDistancia(int trigPin, int echoPin) {
   return distance;
 }
 
-void publicarEnMQTT(float temperature, float humidity, float distance1, float distance2) {
+void publicarEnMQTT(float temperature, float humidity, float distance1, float distance2, float distance3, float distance4, float distance5, float distance6) {
   String timestamp = obtenerTimestamp();
   char payload[200];
 
@@ -194,6 +242,30 @@ void publicarEnMQTT(float temperature, float humidity, float distance1, float di
     sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance2, timestamp.c_str());
     client.publish("warehouse/unit/1/sensor/proximity2", payload);
     Serial.println("Sent proximity 2");
+  }
+
+  if (distance3 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance3, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity3", payload);
+    Serial.println("Sent proximity 3");
+  }
+
+  if (distance4 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance4, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity4", payload);
+    Serial.println("Sent proximity 4");
+  }
+
+  if (distance5 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance5, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity5", payload);
+    Serial.println("Sent proximity 5");
+  }
+
+  if (distance6 >= 0) {
+    sprintf(payload, "{\"value\": %.2f, \"timestamp\": \"%s\"}", distance6, timestamp.c_str());
+    client.publish("warehouse/unit/1/sensor/proximity6", payload);
+    Serial.println("Sent proximity 6");
   }
 }
 

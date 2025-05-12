@@ -129,7 +129,21 @@ class MQTTClient {
     }
 
     async processReadingsBuffer() {
-        if (this.readingsBuffer.length < this.BUFFER_SIZE) return;
+        // Definir los tipos de sensor esperados
+        const expectedSensors = [
+            'proximity1', 'proximity2', 'proximity3', 'proximity4', 'proximity5', 'proximity6',
+            'temperature', 'humidity'
+        ];
+
+        // Contar lecturas por tipo de sensor
+        const sensorCounts = {};
+        for (const sensor of expectedSensors) {
+            sensorCounts[sensor] = this.readingsBuffer.filter(r => r.sensorType === sensor).length;
+        }
+
+        // Verificar si hay al menos 10 lecturas de cada tipo
+        const enoughReadings = expectedSensors.every(sensor => sensorCounts[sensor] >= 10);
+        if (!enoughReadings) return;
 
         console.log('🔄 Procesando buffer de lecturas...');
         console.log(`📊 Total de lecturas en buffer: ${this.readingsBuffer.length}`);
