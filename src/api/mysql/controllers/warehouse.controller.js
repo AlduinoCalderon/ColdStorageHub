@@ -238,9 +238,11 @@ function calculateCostPerHour(size, type) {
 exports.getNearbyWarehouses = async (req, res) => {
     try {
         const { latitude, longitude } = req.query;
+        console.log('[Warehouse] Buscando almacenes cercanos a:', { latitude, longitude });
 
         // Validar coordenadas
         if (!latitude || !longitude) {
+            console.log('[Warehouse] Error: Coordenadas faltantes');
             return res.status(400).json({
                 error: 'Se requieren latitud y longitud',
                 details: 'Por favor, proporcione las coordenadas en los parámetros de consulta'
@@ -251,6 +253,7 @@ exports.getNearbyWarehouses = async (req, res) => {
         const lon = parseFloat(longitude);
 
         if (isNaN(lat) || isNaN(lon)) {
+            console.log('[Warehouse] Error: Coordenadas inválidas:', { lat, lon });
             return res.status(400).json({
                 error: 'Coordenadas inválidas',
                 details: 'La latitud y longitud deben ser números válidos'
@@ -258,24 +261,37 @@ exports.getNearbyWarehouses = async (req, res) => {
         }
 
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            console.log('[Warehouse] Error: Coordenadas fuera de rango:', { lat, lon });
             return res.status(400).json({
                 error: 'Coordenadas fuera de rango',
                 details: 'Latitud debe estar entre -90 y 90, longitud entre -180 y 180'
             });
         }
 
+        console.log('[Warehouse] Consultando almacenes activos...');
         // Obtener todos los almacenes activos
         const warehouses = await Warehouse.findAll({
             where: {
                 status: 'active'
             },
+            attributes: [
+                'warehouseId',
+                'name',
+                'address',
+                'status',
+                [sequelize.fn('ST_X', sequelize.col('location')), 'longitude'],
+                [sequelize.fn('ST_Y', sequelize.col('location')), 'latitude']
+            ],
             include: [
                 {
                     model: StorageUnit,
-                    attributes: ['status']
+                    as: 'units',
+                    attributes: ['status', 'costPerHour']
                 }
             ]
         });
+
+        console.log(`[Warehouse] Se encontraron ${warehouses.length} almacenes activos`);
 
         if (!warehouses.length) {
             return res.status(404).json({
@@ -286,29 +302,36 @@ exports.getNearbyWarehouses = async (req, res) => {
 
         // Procesar y calcular distancias
         const warehousesWithDistance = warehouses.map(warehouse => {
+            const warehouseLat = parseFloat(warehouse.getDataValue('latitude'));
+            const warehouseLon = parseFloat(warehouse.getDataValue('longitude'));
+            
             const distance = calculateDistance(
                 lat,
                 lon,
-                warehouse.latitude,
-                warehouse.longitude
+                warehouseLat,
+                warehouseLon
             );
 
-            const totalUnits = warehouse.StorageUnits.length;
-            const availableUnits = warehouse.StorageUnits.filter(
+            const totalUnits = warehouse.units.length;
+            const availableUnits = warehouse.units.filter(
                 unit => unit.status === 'available'
             ).length;
 
-            const costPerHour = calculateCostPerHour(
-                warehouse.size,
-                warehouse.type
-            );
+            // Calcular el costo mínimo por hora de las unidades disponibles
+            const availableUnitsCosts = warehouse.units
+                .filter(unit => unit.status === 'available' && unit.costPerHour != null)
+                .map(unit => Number(unit.costPerHour));
+
+            const costPerHour = availableUnitsCosts.length > 0
+                ? Math.min(...availableUnitsCosts)
+                : null;
 
             return {
                 id: warehouse.warehouseId,
                 name: warehouse.name,
                 address: warehouse.address,
-                distance,
-                costPerHour,
+                distance: Number(distance.toFixed(2)),
+                costPerHour: costPerHour !== null ? Number(costPerHour.toFixed(2)) : null,
                 availableUnits,
                 totalUnits,
                 status: warehouse.status
@@ -318,9 +341,10 @@ exports.getNearbyWarehouses = async (req, res) => {
         // Ordenar por distancia
         warehousesWithDistance.sort((a, b) => a.distance - b.distance);
 
+        console.log(`[Warehouse] Devolviendo ${warehousesWithDistance.length} almacenes ordenados por distancia`);
         res.json(warehousesWithDistance);
     } catch (error) {
-        console.error('Error al buscar almacenes cercanos:', error);
+        console.error('[Warehouse] Error al buscar almacenes cercanos:', error);
         res.status(500).json({
             error: 'Error al buscar almacenes cercanos',
             details: error.message
