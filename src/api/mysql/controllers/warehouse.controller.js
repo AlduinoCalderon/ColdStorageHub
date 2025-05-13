@@ -237,8 +237,8 @@ function calculateCostPerHour(size, type) {
 // Obtener almacenes cercanos
 exports.getNearbyWarehouses = async (req, res) => {
     try {
-        const { latitude, longitude } = req.query;
-        console.log('[Warehouse] Buscando almacenes cercanos a:', { latitude, longitude });
+        const { latitude, longitude, maxDistanceKm } = req.query;
+        console.log('[Warehouse] Buscando almacenes cercanos a:', { latitude, longitude, maxDistanceKm });
 
         // Validar coordenadas
         if (!latitude || !longitude) {
@@ -251,6 +251,7 @@ exports.getNearbyWarehouses = async (req, res) => {
 
         const lat = parseFloat(latitude);
         const lon = parseFloat(longitude);
+        const maxKm = maxDistanceKm ? parseFloat(maxDistanceKm) : null;
 
         if (isNaN(lat) || isNaN(lon)) {
             console.log('[Warehouse] Error: Coordenadas inválidas:', { lat, lon });
@@ -301,7 +302,7 @@ exports.getNearbyWarehouses = async (req, res) => {
         }
 
         // Procesar y calcular distancias
-        const warehousesWithDistance = warehouses.map(warehouse => {
+        let warehousesWithDistance = warehouses.map(warehouse => {
             const warehouseLat = parseFloat(warehouse.getDataValue('latitude'));
             const warehouseLon = parseFloat(warehouse.getDataValue('longitude'));
             
@@ -337,6 +338,11 @@ exports.getNearbyWarehouses = async (req, res) => {
                 status: warehouse.status
             };
         });
+
+        // Filtrar por distancia máxima si se especifica
+        if (maxKm !== null && !isNaN(maxKm)) {
+            warehousesWithDistance = warehousesWithDistance.filter(w => w.distance <= maxKm);
+        }
 
         // Ordenar por distancia
         warehousesWithDistance.sort((a, b) => a.distance - b.distance);
