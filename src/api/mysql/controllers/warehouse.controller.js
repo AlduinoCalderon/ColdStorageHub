@@ -201,4 +201,129 @@ exports.getWarehouseStats = async (req, res) => {
             details: error.message 
         });
     }
+};
+
+// Función para calcular la distancia usando la fórmula de Haversine
+function calculateDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // Radio de la Tierra en km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return Number(distance.toFixed(2)); // Redondear a 2 decimales
+}
+
+// Función para calcular el costo por hora basado en el tamaño y tipo
+function calculateCostPerHour(size, type) {
+    const baseCost = {
+        'small': 50,
+        'medium': 100,
+        'large': 200
+    };
+    
+    const typeMultiplier = {
+        'standard': 1,
+        'refrigerated': 1.5,
+        'freezer': 2
+    };
+
+    return baseCost[size] * typeMultiplier[type];
+}
+
+// Obtener almacenes cercanos
+exports.getNearbyWarehouses = async (req, res) => {
+    try {
+        const { latitude, longitude } = req.query;
+
+        // Validar coordenadas
+        if (!latitude || !longitude) {
+            return res.status(400).json({
+                error: 'Se requieren latitud y longitud',
+                details: 'Por favor, proporcione las coordenadas en los parámetros de consulta'
+            });
+        }
+
+        const lat = parseFloat(latitude);
+        const lon = parseFloat(longitude);
+
+        if (isNaN(lat) || isNaN(lon)) {
+            return res.status(400).json({
+                error: 'Coordenadas inválidas',
+                details: 'La latitud y longitud deben ser números válidos'
+            });
+        }
+
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            return res.status(400).json({
+                error: 'Coordenadas fuera de rango',
+                details: 'Latitud debe estar entre -90 y 90, longitud entre -180 y 180'
+            });
+        }
+
+        // Obtener todos los almacenes activos
+        const warehouses = await Warehouse.findAll({
+            where: {
+                status: 'active'
+            },
+            include: [
+                {
+                    model: StorageUnit,
+                    attributes: ['status']
+                }
+            ]
+        });
+
+        if (!warehouses.length) {
+            return res.status(404).json({
+                error: 'No se encontraron almacenes',
+                details: 'No hay almacenes activos en el sistema'
+            });
+        }
+
+        // Procesar y calcular distancias
+        const warehousesWithDistance = warehouses.map(warehouse => {
+            const distance = calculateDistance(
+                lat,
+                lon,
+                warehouse.latitude,
+                warehouse.longitude
+            );
+
+            const totalUnits = warehouse.StorageUnits.length;
+            const availableUnits = warehouse.StorageUnits.filter(
+                unit => unit.status === 'available'
+            ).length;
+
+            const costPerHour = calculateCostPerHour(
+                warehouse.size,
+                warehouse.type
+            );
+
+            return {
+                id: warehouse.warehouseId,
+                name: warehouse.name,
+                address: warehouse.address,
+                distance,
+                costPerHour,
+                availableUnits,
+                totalUnits,
+                status: warehouse.status
+            };
+        });
+
+        // Ordenar por distancia
+        warehousesWithDistance.sort((a, b) => a.distance - b.distance);
+
+        res.json(warehousesWithDistance);
+    } catch (error) {
+        console.error('Error al buscar almacenes cercanos:', error);
+        res.status(500).json({
+            error: 'Error al buscar almacenes cercanos',
+            details: error.message
+        });
+    }
 }; 

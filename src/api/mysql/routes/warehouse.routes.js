@@ -9,4 +9,7 @@ router.post('/', warehouseController.createWarehouse);
 router.put('/:id', warehouseController.updateWarehouse);
 router.delete('/:id', warehouseController.deleteWarehouse);
 
+// GET /api/warehouses/nearby - Obtener almacenes cercanos
+router.get('/nearby', warehouseController.getNearbyWarehouses);
+
 module.exports = router; 
